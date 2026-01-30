@@ -1,23 +1,22 @@
 import { Ionicons } from '@expo/vector-icons';
 import {
-    addDays,
-    addWeeks,
-    eachDayOfInterval,
-    endOfWeek,
-    format,
-    isToday,
-    parseISO,
-    startOfWeek,
-    subWeeks
+  addDays,
+  addWeeks,
+  eachDayOfInterval,
+  endOfWeek,
+  format,
+  isToday,
+  parseISO,
+  startOfWeek,
+  subWeeks
 } from 'date-fns';
 import { router } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import {
-    Dimensions,
-    ScrollView,
-    StyleSheet,
-    TouchableOpacity,
-    View,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -26,42 +25,9 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAppSelector } from '@/store';
 import { Shift } from '@/types';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const COLUMN_WIDTH = (SCREEN_WIDTH - 80) / 7;
-
-// Time slots from 00:00 to 24:00 (full 24 hours)
-const TIME_SLOTS = Array.from({ length: 25 }, (_, i) => {
-  return `${i.toString().padStart(2, '0')}:00`;
-});
-
-// 25 grid blocks to match time labels (00:00 through 24:00)
-const GRID_BLOCKS = 25;
-
 function parseTime(time: string): number {
   const [hours, minutes] = time.split(':').map(Number);
   return hours * 60 + minutes;
-}
-
-function getShiftPosition(shift: Shift): { top: number; height: number } {
-  const startMinutes = parseTime(shift.startTime);
-  const endMinutes = parseTime(shift.endTime);
-  
-  const top = (startMinutes / 60) * 50; // 50px per hour
-  
-  // Handle overnight shifts
-  const isOvernight = endMinutes < startMinutes;
-  
-  let height: number;
-  if (isOvernight) {
-    // Overnight shift - extend to bottom of 24:00 grid line (1250px)
-    height = 1250 - top;
-  } else {
-    // Regular shift
-    const duration = endMinutes - startMinutes;
-    height = (duration / 60) * 50;
-  }
-  
-  return { top: Math.max(0, top), height: Math.max(25, height) };
 }
 
 export default function RotaScreen() {
@@ -155,39 +121,85 @@ export default function RotaScreen() {
     });
   };
 
-  const renderShiftBlock = (shift: Shift, index: number) => {
+  const renderShiftCard = (shift: Shift, day: Date) => {
     const staffMember = staffMap.get(shift.staffId);
     if (!staffMember) return null;
 
-    const { top, height } = getShiftPosition(shift);
     const isPrimary = shift.type === 'primary';
+    const startMinutes = parseTime(shift.startTime);
+    const endMinutes = parseTime(shift.endTime);
+    const isOvernight = endMinutes < startMinutes;
+    const isCurrentDay = isToday(day);
 
     return (
       <TouchableOpacity
         key={shift.id}
         style={[
-          styles.shiftBlock,
-          {
-            backgroundColor: staffMember.color,
-            top,
-            height,
-            left: index * 2,
-            width: COLUMN_WIDTH - 8 - index * 2,
-            borderLeftWidth: 3,
-            borderLeftColor: isPrimary ? '#fff' : '#F7DC6F',
+          styles.shiftCard,
+          { 
+            backgroundColor: isDark ? '#2d2d44' : '#fff',
+            borderLeftWidth: 4,
+            borderLeftColor: staffMember.color,
           },
         ]}
         onPress={() => handleEditShift(shift)}
-        activeOpacity={0.8}
+        activeOpacity={0.7}
       >
-        <ThemedText style={styles.shiftName} numberOfLines={1}>
-          {staffMember.name}
-        </ThemedText>
-        {height > 40 && (
-          <ThemedText style={styles.shiftTime} numberOfLines={1}>
-            {shift.startTime}-{shift.endTime}
-          </ThemedText>
+        {/* Overnight Badge - Top Right Corner */}
+        {isOvernight && (
+          <View style={[styles.overnightBadge, { backgroundColor: '#4a4a6a' }]}>
+            <Ionicons name="moon" size={14} color='#F7DC6F' />
+          </View>
         )}
+        
+        {/* Row 1: Day and Time */}
+        <View style={styles.shiftCardTopRow}>
+          <View style={[
+            styles.dayBadge,
+            { 
+              backgroundColor: isCurrentDay ? '#4ECDC4' : isDark ? '#3a3a5a' : '#f0f0f0'
+            }
+          ]}>
+            <ThemedText style={[
+              styles.dayBadgeDay,
+              { color: isCurrentDay ? '#fff' : isDark ? '#fff' : '#333' }
+            ]}>
+              {format(day, 'EEE')}
+            </ThemedText>
+            <ThemedText style={[
+              styles.dayBadgeDate,
+              { color: isCurrentDay ? '#fff' : isDark ? '#aaa' : '#666' }
+            ]}>
+              {format(day, 'd')}
+            </ThemedText>
+          </View>
+          <View style={styles.timeContainer}>
+            <ThemedText style={styles.shiftCardTime}>
+              {shift.startTime}
+            </ThemedText>
+            <ThemedText style={[styles.shiftCardTimeSeparator, { color: isDark ? '#666' : '#999' }]}>
+              -
+            </ThemedText>
+            <ThemedText style={styles.shiftCardTime}>
+              {shift.endTime}
+            </ThemedText>
+          </View>
+        </View>
+        
+        {/* Row 2: Staff Name and Shift Type */}
+        <View style={styles.shiftCardBottomRow}>
+          <ThemedText style={styles.shiftCardName}>
+            {staffMember.name}
+          </ThemedText>
+          <View style={[
+            styles.shiftTypeBadge,
+            { backgroundColor: isPrimary ? '#4ECDC4' : '#F7DC6F' }
+          ]}>
+            <ThemedText style={[styles.shiftTypeBadgeText, { color: isPrimary ? '#fff' : '#333' }]}>
+              {isPrimary ? 'Primary' : 'Secondary'}
+            </ThemedText>
+          </View>
+        </View>
       </TouchableOpacity>
     );
   };
@@ -244,99 +256,21 @@ export default function RotaScreen() {
       {weekShiftCount === 0 ? (
         <EmptyState />
       ) : (
-        <ScrollView style={styles.scrollContainer}>
-          {/* Day Headers */}
-          <View style={styles.headerRow}>
-            <View style={styles.timeColumn} />
-            {weekDays.map((day) => {
-              const dateKey = format(day, 'yyyy-MM-dd');
-              const dayShifts = shiftsByDate.get(dateKey) || [];
-              const isCurrentDay = isToday(day);
-              
-              return (
-                <View
-                  key={dateKey}
-                  style={[
-                    styles.dayHeader,
-                    {
-                      backgroundColor: isCurrentDay
-                        ? '#4ECDC4'
-                        : isDark
-                        ? '#2d2d44'
-                        : '#f0f0f0',
-                    },
-                  ]}
-                >
-                  <ThemedText
-                    style={[
-                      styles.dayName,
-                      isCurrentDay && { color: '#fff' },
-                    ]}
-                  >
-                    {format(day, 'EEE')}
-                  </ThemedText>
-                  <ThemedText
-                    style={[
-                      styles.dayNumber,
-                      isCurrentDay && { color: '#fff' },
-                    ]}
-                  >
-                    {format(day, 'd')}
-                  </ThemedText>
-                  {dayShifts.length > 0 && (
-                    <View
-                      style={[
-                        styles.shiftDot,
-                        { backgroundColor: isCurrentDay ? '#fff' : '#4ECDC4' },
-                      ]}
-                    />
-                  )}
-                </View>
-              );
-            })}
-          </View>
-
-          {/* Time Grid */}
-          <View style={styles.gridContainer}>
-            {/* Time Labels */}
-            <View style={styles.timeColumn}>
-              {TIME_SLOTS.map((time) => (
-                <View key={time} style={styles.timeSlot}>
-                  <ThemedText style={styles.timeLabel}>{time}</ThemedText>
-                </View>
-              ))}
-            </View>
-
-            {/* Day Columns */}
-            {weekDays.map((day) => {
-              const dateKey = format(day, 'yyyy-MM-dd');
-              const dayShifts = shiftsByDate.get(dateKey) || [];
-              
-              return (
-                <View
-                  key={dateKey}
-                  style={[
-                    styles.dayColumn,
-                    { borderColor: isDark ? '#3a3a5a' : '#e0e0e0' },
-                  ]}
-                >
-                  {/* Grid blocks */}
-                  {Array.from({ length: GRID_BLOCKS }).map((_, i) => (
-                    <View
-                      key={i}
-                      style={[
-                        styles.gridLine,
-                        { borderColor: isDark ? '#3a3a5a' : '#f0f0f0' },
-                      ]}
-                    />
-                  ))}
-                  
-                  {/* Shift blocks */}
-                  {dayShifts.map((shift, index) => renderShiftBlock(shift, index))}
-                </View>
-              );
-            })}
-          </View>
+        <ScrollView 
+          style={styles.scrollContainer}
+          contentContainerStyle={styles.listContent}
+        >
+          {weekDays.map((day) => {
+            const dateKey = format(day, 'yyyy-MM-dd');
+            const dayShifts = shiftsByDate.get(dateKey) || [];
+            
+            // Filter out continuation shifts and sort by start time
+            const uniqueShifts = dayShifts
+              .filter(shift => !shift.id.endsWith('-continuation'))
+              .sort((a, b) => parseTime(a.startTime) - parseTime(b.startTime));
+            
+            return uniqueShifts.map((shift) => renderShiftCard(shift, day));
+          })}
         </ScrollView>
       )}
 
@@ -380,84 +314,87 @@ const styles = StyleSheet.create({
   scrollContainer: {
     flex: 1,
   },
-  headerRow: {
+  listContent: {
+    paddingBottom: 100,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+  },
+  shiftCard: {
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    position: 'relative',
+  },
+  shiftCardTopRow: {
     flexDirection: 'row',
-    paddingHorizontal: 8,
-    paddingTop: 8,
-  },
-  timeColumn: {
-    width: 50,
-  },
-  dayHeader: {
-    width: COLUMN_WIDTH,
-    paddingVertical: 8,
     alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  shiftCardBottomRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  dayBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: 8,
-    marginHorizontal: 2,
+    alignItems: 'center',
+    minWidth: 50,
   },
-  dayName: {
-    fontSize: 11,
-    fontWeight: '500',
-    opacity: 0.7,
+  dayBadgeDay: {
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
   },
-  dayNumber: {
+  dayBadgeDate: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  timeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center',
+  },
+  shiftCardTime: {
+    fontSize: 20,
+    fontWeight: '600',
+  },
+  shiftCardTimeSeparator: {
+    fontSize: 20,
+    marginHorizontal: 6,
+  },
+  overnightBadge: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    zIndex: 1,
+  },
+  shiftCardName: {
     fontSize: 16,
     fontWeight: '600',
+    flex: 1,
   },
-  shiftDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    marginTop: 4,
+  shiftTypeBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginLeft: 8,
   },
-  gridContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 8,
-    paddingBottom: 100,
-  },
-  timeSlot: {
-    height: 50,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  timeLabel: {
-    fontSize: 10,
-    opacity: 0.6,
-  },
-  dayColumn: {
-    width: COLUMN_WIDTH,
-    position: 'relative',
-    borderLeftWidth: 1,
-    marginHorizontal: 2,
-    height: 1250, // Match time column: 25 slots × 50px
-    overflow: 'visible',
-  },
-  gridLine: {
-    height: 50,
-    borderBottomWidth: 1,
-  },
-  shiftBlock: {
-    position: 'absolute',
-    right: 4,
-    left: 0,
-    borderRadius: 6,
-    padding: 4,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  shiftName: {
-    fontSize: 10,
+  shiftTypeBadgeText: {
+    fontSize: 11,
     fontWeight: '600',
-    color: '#fff',
-  },
-  shiftTime: {
-    fontSize: 8,
-    color: '#fff',
-    opacity: 0.9,
   },
   fab: {
     position: 'absolute',

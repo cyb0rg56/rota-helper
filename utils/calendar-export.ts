@@ -102,15 +102,14 @@ function parseTime(timeStr: string): { hours: number; minutes: number } {
 }
 
 /**
- * Find existing calendar event for a shift
- * Returns the event if found, null otherwise
+ * Check if a shift already exists in the calendar
  */
-async function findExistingShiftEvent(
+async function shiftExistsInCalendar(
   calendarId: string,
   shift: Shift,
   startDate: Date,
   endDate: Date
-): Promise<Calendar.Event | null> {
+): Promise<boolean> {
   try {
     // Search for events on the shift's start date
     const dayStart = new Date(startDate);
@@ -125,46 +124,16 @@ async function findExistingShiftEvent(
       dayEnd
     );
     
-    // Find event that matches this shift's unique identifier
+    // Check if any event matches this shift's unique identifier
     const shiftIdentifier = `SHIFT_ID:${shift.id}`;
     
-    const matchingEvent = existingEvents.find(
+    return existingEvents.some(
       (event) => event.notes && event.notes.includes(shiftIdentifier)
     );
-    
-    return matchingEvent || null;
   } catch (error) {
     console.error('Error checking for existing event:', error);
-    return null; // If we can't check, assume it doesn't exist to avoid skipping
+    return false; // If we can't check, assume it doesn't exist to avoid skipping
   }
-}
-
-/**
- * Check if event details match the shift
- */
-function eventMatchesShift(
-  event: Calendar.Event,
-  title: string,
-  startDate: Date,
-  endDate: Date,
-  notes: string
-): boolean {
-  const timeTolerance = 1000; // 1 second tolerance for time comparison
-  
-  // Convert event dates to Date objects if they're strings
-  const eventStartDate = typeof event.startDate === 'string' 
-    ? new Date(event.startDate) 
-    : event.startDate;
-  const eventEndDate = typeof event.endDate === 'string' 
-    ? new Date(event.endDate) 
-    : event.endDate;
-  
-  return (
-    event.title === title &&
-    Math.abs(eventStartDate.getTime() - startDate.getTime()) < timeTolerance &&
-    Math.abs(eventEndDate.getTime() - endDate.getTime()) < timeTolerance &&
-    event.notes === notes
-  );
 }
 
 export async function exportRotaToCalendar(
@@ -174,7 +143,6 @@ export async function exportRotaToCalendar(
 ): Promise<{ 
   success: boolean; 
   eventsCreated: number; 
-  eventsUpdated: number;
   eventsSkipped: number;
   calendarUsed?: string;
   error?: string;
@@ -186,7 +154,6 @@ export async function exportRotaToCalendar(
       return {
         success: false,
         eventsCreated: 0,
-        eventsUpdated: 0,
         eventsSkipped: 0,
         error: 'Calendar permission denied. Please enable it in settings.',
       };
@@ -198,7 +165,6 @@ export async function exportRotaToCalendar(
       return {
         success: false,
         eventsCreated: 0,
-        eventsUpdated: 0,
         eventsSkipped: 0,
         error: 'Could not find or create a writable calendar.',
       };
@@ -213,7 +179,6 @@ export async function exportRotaToCalendar(
     const staffMap = new Map(staff.map((s) => [s.id, s]));
     
     let eventsCreated = 0;
-    let eventsUpdated = 0;
     let eventsSkipped = 0;
     
     // Create calendar event for each shift
@@ -236,6 +201,19 @@ export async function exportRotaToCalendar(
       const endDay = isOvernightShift ? addDays(shiftDate, 1) : shiftDate;
       const endDate = setMinutes(setHours(endDay, endHours), endMinutes);
       
+      // Check if this shift already exists in the calendar
+      const alreadyExists = await shiftExistsInCalendar(
+        calendarId,
+        shift,
+        startDate,
+        endDate
+      );
+      
+      if (alreadyExists) {
+        eventsSkipped++;
+        continue;
+      }
+      
       // Create title with shift type
       const typeLabel = shift.type === 'primary' ? 'Primary' : 'Secondary';
       const title = `${staffMember.name} - ${typeLabel}${staffMember.role ? ` (${staffMember.role})` : ''}`;
@@ -246,74 +224,20 @@ export async function exportRotaToCalendar(
         `\n\nSHIFT_ID:${shift.id}`,
       ].join('');
       
-      // Check if this shift already exists in the calendar
-      const existingEvent = await findExistingShiftEvent(
-        calendarId,
-        shift,
+      await Calendar.createEventAsync(calendarId, {
+        title,
         startDate,
-        endDate
-      );
+        endDate,
+        notes: notesContent,
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      });
       
-      if (existingEvent) {
-        // Check if event details match
-        const detailsMatch = eventMatchesShift(
-          existingEvent,
-          title,
-          startDate,
-          endDate,
-          notesContent
-        );
-        
-        if (detailsMatch) {
-          // Event exists and is up to date, skip it
-          eventsSkipped++;
-          continue;
-        } else {
-          // Event exists but details have changed, update it
-          try {
-            await Calendar.updateEventAsync(existingEvent.id, {
-              title,
-              startDate,
-              endDate,
-              notes: notesContent,
-              timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-            });
-            eventsUpdated++;
-          } catch (updateError) {
-            console.error('Failed to update event:', updateError);
-            // If update fails, try to delete and recreate
-            try {
-              await Calendar.deleteEventAsync(existingEvent.id);
-              await Calendar.createEventAsync(calendarId, {
-                title,
-                startDate,
-                endDate,
-                notes: notesContent,
-                timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-              });
-              eventsUpdated++;
-            } catch (recreateError) {
-              console.error('Failed to recreate event:', recreateError);
-            }
-          }
-        }
-      } else {
-        // Event doesn't exist, create it
-        await Calendar.createEventAsync(calendarId, {
-          title,
-          startDate,
-          endDate,
-          notes: notesContent,
-          timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        });
-        eventsCreated++;
-      }
+      eventsCreated++;
     }
     
     return {
       success: true,
       eventsCreated,
-      eventsUpdated,
       eventsSkipped,
       calendarUsed: actualCalendarName,
     };
@@ -322,7 +246,6 @@ export async function exportRotaToCalendar(
     return {
       success: false,
       eventsCreated: 0,
-      eventsUpdated: 0,
       eventsSkipped: 0,
       error: error instanceof Error ? error.message : 'Unknown error occurred',
     };

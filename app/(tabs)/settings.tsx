@@ -2,14 +2,14 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -17,7 +17,7 @@ import { ThemedView } from '@/components/themed-view';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAppDispatch, useAppSelector } from '@/store';
 import { clearAllShifts } from '@/store/slices/shiftSlice';
-import { exportRotaToCalendar, showExportConfirmation, clearRotaFromCalendar } from '@/utils/calendar-export';
+import { clearRotaFromCalendar, exportRotaToCalendar, showExportConfirmation } from '@/utils/calendar-export';
 
 const CALENDAR_NAME_KEY = '@rota_calendar_name';
 
@@ -76,24 +76,11 @@ export default function SettingsScreen() {
 
         if (result.success) {
           const calendarUsed = result.calendarUsed || calendarName;
-          const parts: string[] = [];
-          
-          // Build message based on what happened
-          if (result.eventsCreated > 0) {
-            parts.push(`Created ${result.eventsCreated} event${result.eventsCreated !== 1 ? 's' : ''}`);
-          }
-          
-          if (result.eventsUpdated > 0) {
-            parts.push(`Updated ${result.eventsUpdated} event${result.eventsUpdated !== 1 ? 's' : ''}`);
-          }
+          let message = `Successfully created ${result.eventsCreated} calendar event${result.eventsCreated !== 1 ? 's' : ''} in "${calendarUsed}".`;
           
           if (result.eventsSkipped > 0) {
-            parts.push(`Skipped ${result.eventsSkipped} event${result.eventsSkipped !== 1 ? 's' : ''}`);
+            message += `\n\n${result.eventsSkipped} event${result.eventsSkipped !== 1 ? 's were' : ' was'} skipped (already exists in calendar).`;
           }
-          
-          let message = parts.length > 0 
-            ? `${parts.join(', ')} in "${calendarUsed}".`
-            : `All events in "${calendarUsed}" are up to date.`;
           
           // Show a note if we fell back to a different calendar
           if (calendarUsed !== calendarName) {
@@ -238,7 +225,7 @@ export default function SettingsScreen() {
         </View>
 
         {/* Export */}
-        <SettingsSection title="Calendar Export">
+        <SettingsSection title="Calendar Management">
           <SettingsRow
             icon="calendar"
             iconColor="#4ECDC4"
@@ -282,6 +269,7 @@ export default function SettingsScreen() {
         <SettingsSection title="Data Management">
           <SettingsRow
             icon="trash-outline"
+            iconColor="#FF6B6B"
             label="Clear All Shifts"
             onPress={handleClearShifts}
             destructive

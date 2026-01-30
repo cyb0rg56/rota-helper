@@ -1,24 +1,24 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import { addDays, format, parseISO } from 'date-fns';
+import { router, useLocalSearchParams } from 'expo-router';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-  StyleSheet,
-  View,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
+  Alert,
   KeyboardAvoidingView,
   Platform,
-  Alert,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { format, parseISO, addDays } from 'date-fns';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { useAppDispatch, useAppSelector } from '@/store';
-import { updateShift, removeShift } from '@/store/slices/shiftSlice';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Staff, ShiftType } from '@/types';
+import { useAppDispatch, useAppSelector } from '@/store';
+import { removeShift, updateShift } from '@/store/slices/shiftSlice';
+import { ShiftType, Staff } from '@/types';
 
 const TIME_OPTIONS = Array.from({ length: 48 }, (_, i) => {
   const hour = Math.floor(i / 2);
@@ -403,7 +403,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 20,
-    paddingBottom: 40,
+    paddingBottom: 50,
   },
   errorContainer: {
     flex: 1,

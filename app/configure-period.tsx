@@ -1,23 +1,23 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import {
-  StyleSheet,
-  View,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
-} from 'react-native';
-import { router } from 'expo-router';
-import { format, parseISO, addMonths, isValid, getDaysInMonth } from 'date-fns';
 import { generateId } from '@/utils/id';
 import { Ionicons } from '@expo/vector-icons';
+import { addMonths, format, getDaysInMonth, isValid, parseISO } from 'date-fns';
+import { router } from 'expo-router';
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAppDispatch, useAppSelector } from '@/store';
 import { setPeriod, updatePeriod } from '@/store/slices/periodSlice';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 
 // Generate month options for the next 2 years
 const generateMonthOptions = () => {
@@ -417,7 +417,6 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 20,
-    paddingBottom: 40,
   },
   field: {
     marginBottom: 16,
