@@ -253,7 +253,7 @@ export default function SettingsScreen() {
             )}
           </TouchableOpacity>
           <ThemedText style={styles.exportHint}>
-            Exports to "{calendarName}" calendar. Duplicates will be skipped.
+            Exports to &quot;{calendarName}&quot; calendar. Duplicates will be skipped.
           </ThemedText>
           <SettingsRow
             icon="trash-outline"

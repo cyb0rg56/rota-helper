@@ -11,7 +11,6 @@ export async function requestCalendarPermissions(): Promise<boolean> {
 export async function getOrCreateCalendar(calendarName: string): Promise<string | null> {
   const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
   
-  // Try to find calendar with the specified name
   const existingCalendar = calendars.find(
     (cal) => cal.title === calendarName && cal.allowsModifications
   );
@@ -20,11 +19,9 @@ export async function getOrCreateCalendar(calendarName: string): Promise<string 
     return existingCalendar.id;
   }
   
-  // Try to create a new calendar with the specified name
   let newCalendarId: string | null = null;
   
   if (Platform.OS === 'ios') {
-    // For iOS, try local source first, then iCloud
     const localSource = calendars.find(
       (cal) => cal.source && cal.source.type === 'local'
     )?.source;
@@ -50,11 +47,9 @@ export async function getOrCreateCalendar(calendarName: string): Promise<string 
         return newCalendarId;
       } catch (error) {
         console.error('Failed to create calendar:', error);
-        // If creation failed, fall through to use default calendar
       }
     }
   } else if (Platform.OS === 'android') {
-    // Android calendar creation
     const defaultCalendarSource = calendars.find(
       (cal) => cal.source && cal.allowsModifications
     )?.source || calendars.find((cal) => cal.source)?.source;
@@ -74,7 +69,6 @@ export async function getOrCreateCalendar(calendarName: string): Promise<string 
         return newCalendarId;
       } catch (error) {
         console.error('Failed to create calendar:', error);
-        // If creation failed, fall through to use default calendar
       }
     }
   }
@@ -86,13 +80,6 @@ export async function getOrCreateCalendar(calendarName: string): Promise<string 
     return defaultCalendar.id;
   }
   
-  // Last resort: find any writable calendar
-  const writableCalendar = calendars.find((cal) => cal.allowsModifications);
-  if (writableCalendar) {
-    console.log('Using first writable calendar:', writableCalendar.title);
-    return writableCalendar.id;
-  }
-  
   return null;
 }
 
@@ -101,9 +88,6 @@ function parseTime(timeStr: string): { hours: number; minutes: number } {
   return { hours, minutes };
 }
 
-/**
- * Check if a shift already exists in the calendar
- */
 async function shiftExistsInCalendar(
   calendarId: string,
   shift: Shift,
@@ -148,7 +132,6 @@ export async function exportRotaToCalendar(
   error?: string;
 }> {
   try {
-    // Request permissions
     const hasPermission = await requestCalendarPermissions();
     if (!hasPermission) {
       return {
@@ -159,7 +142,6 @@ export async function exportRotaToCalendar(
       };
     }
     
-    // Get or create calendar
     const calendarId = await getOrCreateCalendar(calendarName);
     if (!calendarId) {
       return {
@@ -170,18 +152,15 @@ export async function exportRotaToCalendar(
       };
     }
     
-    // Get the actual calendar name being used
     const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
     const usedCalendar = calendars.find((cal) => cal.id === calendarId);
     const actualCalendarName = usedCalendar?.title || calendarName;
     
-    // Create staff lookup
     const staffMap = new Map(staff.map((s) => [s.id, s]));
     
     let eventsCreated = 0;
     let eventsSkipped = 0;
     
-    // Create calendar event for each shift
     for (const shift of shifts) {
       const staffMember = staffMap.get(shift.staffId);
       if (!staffMember) continue;
@@ -189,7 +168,6 @@ export async function exportRotaToCalendar(
       const { hours: startHours, minutes: startMinutes } = parseTime(shift.startTime);
       const { hours: endHours, minutes: endMinutes } = parseTime(shift.endTime);
       
-      // Check if this is an overnight shift (end time is before start time)
       const isOvernightShift = 
         endHours < startHours || 
         (endHours === startHours && endMinutes < startMinutes);
@@ -197,11 +175,9 @@ export async function exportRotaToCalendar(
       const shiftDate = parseISO(shift.date);
       const startDate = setMinutes(setHours(shiftDate, startHours), startMinutes);
       
-      // If overnight shift, add a day to the end date
       const endDay = isOvernightShift ? addDays(shiftDate, 1) : shiftDate;
       const endDate = setMinutes(setHours(endDay, endHours), endMinutes);
       
-      // Check if this shift already exists in the calendar
       const alreadyExists = await shiftExistsInCalendar(
         calendarId,
         shift,
@@ -214,11 +190,9 @@ export async function exportRotaToCalendar(
         continue;
       }
       
-      // Create title with shift type
       const typeLabel = shift.type === 'primary' ? 'Primary' : 'Secondary';
       const title = `${staffMember.name} - ${typeLabel}${staffMember.role ? ` (${staffMember.role})` : ''}`;
       
-      // Create notes with unique identifier
       const notesContent = [
         shift.notes || `${typeLabel} shift for ${staffMember.name}`,
         `\n\nSHIFT_ID:${shift.id}`,
@@ -252,14 +226,10 @@ export async function exportRotaToCalendar(
   }
 }
 
-/**
- * Delete all rota events from the calendar
- */
 export async function clearRotaFromCalendar(
   calendarName: string = 'Rota Helper'
 ): Promise<{ success: boolean; eventsDeleted: number; error?: string }> {
   try {
-    // Request permissions
     const hasPermission = await requestCalendarPermissions();
     if (!hasPermission) {
       return {
@@ -269,10 +239,8 @@ export async function clearRotaFromCalendar(
       };
     }
     
-    // Get all calendars
     const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
     
-    // Try to find the specified calendar, or fall back to checking all writable calendars
     let calendarsToCheck: string[] = [];
     
     const targetCalendar = calendars.find(
@@ -282,8 +250,6 @@ export async function clearRotaFromCalendar(
     if (targetCalendar) {
       calendarsToCheck = [targetCalendar.id];
     } else {
-      // If named calendar doesn't exist, check all writable calendars
-      // (in case events were added to default calendar)
       calendarsToCheck = calendars
         .filter((cal) => cal.allowsModifications)
         .map((cal) => cal.id);
@@ -297,10 +263,9 @@ export async function clearRotaFromCalendar(
       };
     }
     
-    // Get all events from the calendars (search over a wide range)
     const now = new Date();
-    const startDate = new Date(now.getFullYear() - 1, 0, 1); // 1 year ago
-    const endDate = new Date(now.getFullYear() + 2, 11, 31); // 2 years ahead
+    const startDate = new Date(now.getFullYear() - 1, 0, 1);
+    const endDate = new Date(now.getFullYear() + 2, 11, 31);
     
     const events = await Calendar.getEventsAsync(
       calendarsToCheck,
@@ -308,7 +273,6 @@ export async function clearRotaFromCalendar(
       endDate
     );
     
-    // Filter events that have our shift identifier
     const rotaEvents = events.filter(
       (event) => event.notes && event.notes.includes('SHIFT_ID:')
     );
@@ -322,7 +286,6 @@ export async function clearRotaFromCalendar(
     
     let eventsDeleted = 0;
     
-    // Delete each rota event
     for (const event of rotaEvents) {
       try {
         await Calendar.deleteEventAsync(event.id);

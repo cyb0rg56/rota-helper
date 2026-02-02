@@ -4,7 +4,6 @@ import {
   addDays,
   addMonths,
   eachDayOfInterval,
-  endOfMonth,
   format,
   getDay,
   isSameDay,
@@ -65,7 +64,6 @@ export default function AddShiftsScreen() {
   // Get calendar days for current month
   const calendarDays = useMemo(() => {
     const monthStart = startOfMonth(currentMonth);
-    const monthEnd = endOfMonth(currentMonth);
     const startDay = getDay(monthStart);
     
     // Adjust for Monday start (getDay returns 0=Sunday)

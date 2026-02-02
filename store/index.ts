@@ -1,10 +1,10 @@
-import { configureStore, combineReducers } from '@reduxjs/toolkit';
-import { useDispatch, useSelector, TypedUseSelectorHook } from 'react-redux';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { combineReducers, configureStore } from '@reduxjs/toolkit';
+import { TypedUseSelectorHook, useDispatch, useSelector } from 'react-redux';
 
-import staffReducer from './slices/staffSlice';
-import shiftReducer from './slices/shiftSlice';
 import periodReducer from './slices/periodSlice';
+import shiftReducer from './slices/shiftSlice';
+import staffReducer from './slices/staffSlice';
 
 const rootReducer = combineReducers({
   staff: staffReducer,
@@ -20,15 +20,14 @@ export const store = configureStore({
     }),
 });
 
-// Types
-export type RootState = ReturnType<typeof store.getState>;
-export type AppDispatch = typeof store.dispatch;
+// Internal types for typed hooks
+type RootState = ReturnType<typeof store.getState>;
+type AppDispatch = typeof store.dispatch;
 
-// Typed hooks
+// Typed hooks for use throughout the app
 export const useAppDispatch = () => useDispatch<AppDispatch>();
 export const useAppSelector: TypedUseSelectorHook<RootState> = useSelector;
 
-// Persistence helpers
 const STORAGE_KEYS = {
   STAFF: '@rota_staff',
   SHIFTS: '@rota_shifts',

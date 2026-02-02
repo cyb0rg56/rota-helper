@@ -1,8 +1,18 @@
-# Welcome to your Expo app 👋
+# Rota Helper
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A React Native mobile app for managing staff schedules and shift rotations. Built with Expo and Redux Toolkit.
 
-## Get started
+## Features
+
+- **Staff Management**: Add, edit, and remove staff members with custom color coding
+- **Shift Scheduling**: Create and manage primary and secondary shifts
+- **Weekly View**: Navigate through weeks with an intuitive calendar interface
+- **Calendar Export**: Export shifts to device calendar with automatic duplicate detection
+- **Dark Mode**: Full support for light and dark themes
+- **Overnight Shifts**: Automatic handling of shifts that span multiple days
+- **Data Persistence**: All data is saved locally using AsyncStorage
+
+## Get Started
 
 1. Install dependencies
 
@@ -16,24 +26,20 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
    npx expo start
    ```
 
-In the output, you'll find options to open the app in a
+3. Run on your preferred platform:
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+   - Press `i` for iOS simulator
+   - Press `a` for Android emulator
+   - Scan QR code with Expo Go app on your device
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+## Tech Stack
 
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+- **React Native** with Expo
+- **Expo Router** for file-based navigation
+- **Redux Toolkit** for state management
+- **date-fns** for date manipulation
+- **Expo Calendar** for calendar integration
+- **TypeScript** for type safety
 
 ## Learn more
 
