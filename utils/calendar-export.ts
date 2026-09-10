@@ -4,37 +4,35 @@ import * as Calendar from 'expo-calendar';
 import { Alert, Platform } from 'react-native';
 
 export async function requestCalendarPermissions(): Promise<boolean> {
-  const { status } = await Calendar.requestCalendarPermissionsAsync();
+  const { status } = await Calendar.requestCalendarPermissions();
   return status === 'granted';
 }
 
 export async function getOrCreateCalendar(calendarName: string): Promise<string | null> {
-  const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
-  
+  const calendars = await Calendar.getCalendars(Calendar.EntityTypes.EVENT);
+
   const existingCalendar = calendars.find(
     (cal) => cal.title === calendarName && cal.allowsModifications
   );
-  
+
   if (existingCalendar) {
     return existingCalendar.id;
   }
-  
-  let newCalendarId: string | null = null;
-  
+
   if (Platform.OS === 'ios') {
     const localSource = calendars.find(
-      (cal) => cal.source && cal.source.type === 'local'
+      (cal) => cal.source && cal.source.type === Calendar.SourceType.LOCAL
     )?.source;
-    
+
     const iCloudSource = calendars.find(
-      (cal) => cal.source && cal.source.type === 'caldav'
+      (cal) => cal.source && cal.source.type === Calendar.SourceType.CALDAV
     )?.source;
-    
+
     const defaultCalendarSource = localSource || iCloudSource || calendars.find((cal) => cal.source)?.source;
-    
+
     if (defaultCalendarSource) {
       try {
-        newCalendarId = await Calendar.createCalendarAsync({
+        const newCalendar = await Calendar.createCalendar({
           title: calendarName,
           color: '#4ECDC4',
           entityType: Calendar.EntityTypes.EVENT,
@@ -44,7 +42,7 @@ export async function getOrCreateCalendar(calendarName: string): Promise<string 
           ownerAccount: 'personal',
           accessLevel: Calendar.CalendarAccessLevel.OWNER,
         });
-        return newCalendarId;
+        return newCalendar.id;
       } catch (error) {
         console.error('Failed to create calendar:', error);
       }
@@ -53,10 +51,10 @@ export async function getOrCreateCalendar(calendarName: string): Promise<string 
     const defaultCalendarSource = calendars.find(
       (cal) => cal.source && cal.allowsModifications
     )?.source || calendars.find((cal) => cal.source)?.source;
-    
+
     if (defaultCalendarSource) {
       try {
-        newCalendarId = await Calendar.createCalendarAsync({
+        const newCalendar = await Calendar.createCalendar({
           title: calendarName,
           color: '#4ECDC4',
           entityType: Calendar.EntityTypes.EVENT,
@@ -66,20 +64,32 @@ export async function getOrCreateCalendar(calendarName: string): Promise<string 
           ownerAccount: 'personal',
           accessLevel: Calendar.CalendarAccessLevel.OWNER,
         });
-        return newCalendarId;
+        return newCalendar.id;
       } catch (error) {
         console.error('Failed to create calendar:', error);
       }
     }
   }
-  
-  // If we couldn't create a calendar, use the default writable calendar
-  const defaultCalendar = await Calendar.getDefaultCalendarAsync();
-  if (defaultCalendar && defaultCalendar.allowsModifications) {
-    console.log('Using default calendar:', defaultCalendar.title);
-    return defaultCalendar.id;
+
+  // If we couldn't create a calendar, use a default writable calendar
+  if (Platform.OS === 'ios') {
+    try {
+      const defaultCalendar = Calendar.getDefaultCalendarSync();
+      if (defaultCalendar && defaultCalendar.allowsModifications) {
+        console.log('Using default calendar:', defaultCalendar.title);
+        return defaultCalendar.id;
+      }
+    } catch (error) {
+      console.error('Failed to get default calendar:', error);
+    }
   }
-  
+
+  const fallbackCalendar = calendars.find((cal) => cal.allowsModifications);
+  if (fallbackCalendar) {
+    console.log('Using fallback calendar:', fallbackCalendar.title);
+    return fallbackCalendar.id;
+  }
+
   return null;
 }
 
@@ -98,19 +108,19 @@ async function shiftExistsInCalendar(
     // Search for events on the shift's start date
     const dayStart = new Date(startDate);
     dayStart.setHours(0, 0, 0, 0);
-    
+
     const dayEnd = new Date(endDate);
     dayEnd.setHours(23, 59, 59, 999);
-    
-    const existingEvents = await Calendar.getEventsAsync(
+
+    const existingEvents = await Calendar.listEvents(
       [calendarId],
       dayStart,
       dayEnd
     );
-    
+
     // Check if any event matches this shift's unique identifier
     const shiftIdentifier = `SHIFT_ID:${shift.id}`;
-    
+
     return existingEvents.some(
       (event) => event.notes && event.notes.includes(shiftIdentifier)
     );
@@ -124,9 +134,9 @@ export async function exportRotaToCalendar(
   shifts: Shift[],
   staff: Staff[],
   calendarName: string = 'Rota Helper'
-): Promise<{ 
-  success: boolean; 
-  eventsCreated: number; 
+): Promise<{
+  success: boolean;
+  eventsCreated: number;
   eventsSkipped: number;
   calendarUsed?: string;
   error?: string;
@@ -141,7 +151,7 @@ export async function exportRotaToCalendar(
         error: 'Calendar permission denied. Please enable it in settings.',
       };
     }
-    
+
     const calendarId = await getOrCreateCalendar(calendarName);
     if (!calendarId) {
       return {
@@ -151,64 +161,63 @@ export async function exportRotaToCalendar(
         error: 'Could not find or create a writable calendar.',
       };
     }
-    
-    const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
-    const usedCalendar = calendars.find((cal) => cal.id === calendarId);
+
+    const usedCalendar = await Calendar.ExpoCalendar.get(calendarId);
     const actualCalendarName = usedCalendar?.title || calendarName;
-    
+
     const staffMap = new Map(staff.map((s) => [s.id, s]));
-    
+
     let eventsCreated = 0;
     let eventsSkipped = 0;
-    
+
     for (const shift of shifts) {
       const staffMember = staffMap.get(shift.staffId);
       if (!staffMember) continue;
-      
+
       const { hours: startHours, minutes: startMinutes } = parseTime(shift.startTime);
       const { hours: endHours, minutes: endMinutes } = parseTime(shift.endTime);
-      
-      const isOvernightShift = 
-        endHours < startHours || 
+
+      const isOvernightShift =
+        endHours < startHours ||
         (endHours === startHours && endMinutes < startMinutes);
-      
+
       const shiftDate = parseISO(shift.date);
       const startDate = setMinutes(setHours(shiftDate, startHours), startMinutes);
-      
+
       const endDay = isOvernightShift ? addDays(shiftDate, 1) : shiftDate;
       const endDate = setMinutes(setHours(endDay, endHours), endMinutes);
-      
+
       const alreadyExists = await shiftExistsInCalendar(
         calendarId,
         shift,
         startDate,
         endDate
       );
-      
+
       if (alreadyExists) {
         eventsSkipped++;
         continue;
       }
-      
+
       const typeLabel = shift.type === 'primary' ? 'Primary' : 'Secondary';
       const title = `${staffMember.name} - ${typeLabel}${staffMember.role ? ` (${staffMember.role})` : ''}`;
-      
+
       const notesContent = [
         shift.notes || `${typeLabel} shift for ${staffMember.name}`,
         `\n\nSHIFT_ID:${shift.id}`,
       ].join('');
-      
-      await Calendar.createEventAsync(calendarId, {
+
+      await usedCalendar.createEvent({
         title,
         startDate,
         endDate,
         notes: notesContent,
         timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       });
-      
+
       eventsCreated++;
     }
-    
+
     return {
       success: true,
       eventsCreated,
@@ -238,15 +247,15 @@ export async function clearRotaFromCalendar(
         error: 'Calendar permission denied. Please enable it in settings.',
       };
     }
-    
-    const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
-    
+
+    const calendars = await Calendar.getCalendars(Calendar.EntityTypes.EVENT);
+
     let calendarsToCheck: string[] = [];
-    
+
     const targetCalendar = calendars.find(
       (cal) => cal.title === calendarName && cal.allowsModifications
     );
-    
+
     if (targetCalendar) {
       calendarsToCheck = [targetCalendar.id];
     } else {
@@ -254,7 +263,7 @@ export async function clearRotaFromCalendar(
         .filter((cal) => cal.allowsModifications)
         .map((cal) => cal.id);
     }
-    
+
     if (calendarsToCheck.length === 0) {
       return {
         success: false,
@@ -262,39 +271,39 @@ export async function clearRotaFromCalendar(
         error: 'No writable calendars found.',
       };
     }
-    
+
     const now = new Date();
     const startDate = new Date(now.getFullYear() - 1, 0, 1);
     const endDate = new Date(now.getFullYear() + 2, 11, 31);
-    
-    const events = await Calendar.getEventsAsync(
+
+    const events = await Calendar.listEvents(
       calendarsToCheck,
       startDate,
       endDate
     );
-    
+
     const rotaEvents = events.filter(
       (event) => event.notes && event.notes.includes('SHIFT_ID:')
     );
-    
+
     if (rotaEvents.length === 0) {
       return {
         success: true,
         eventsDeleted: 0,
       };
     }
-    
+
     let eventsDeleted = 0;
-    
+
     for (const event of rotaEvents) {
       try {
-        await Calendar.deleteEventAsync(event.id);
+        await event.delete();
         eventsDeleted++;
       } catch (error) {
         console.error('Failed to delete event:', event.id, error);
       }
     }
-    
+
     return {
       success: true,
       eventsDeleted,
