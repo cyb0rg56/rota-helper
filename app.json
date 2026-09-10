@@ -44,7 +44,14 @@
       ],
       "expo-font",
       "expo-image",
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-status-bar",
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "Rota Helper needs calendar access to export shifts."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
