@@ -9,6 +9,7 @@ import {
   startOfMonth,
   subMonths,
 } from 'date-fns';
+import SegmentedControl from '@react-native-segmented-control/segmented-control';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, TextInput, View } from 'react-native';
@@ -43,6 +44,7 @@ export default function AddShiftsScreen() {
   const [endTime, setEndTime] = useState('17:00');
   const [notes, setNotes] = useState('');
   const [showStaffPicker, setShowStaffPicker] = useState(false);
+  const [selectionMode, setSelectionMode] = useState<ShiftType>('primary');
 
   const calendarDays = useMemo(() => {
     const monthStart = startOfMonth(currentMonth);
@@ -52,6 +54,11 @@ export default function AddShiftsScreen() {
     const calendarEnd = addDays(calendarStart, 41);
     return eachDayOfInterval({ start: calendarStart, end: calendarEnd });
   }, [currentMonth]);
+
+  const calendarWeeks = useMemo(
+    () => Array.from({ length: 6 }, (_, week) => calendarDays.slice(week * 7, week * 7 + 7)),
+    [calendarDays]
+  );
 
   const overnight = useMemo(() => isOvernight(startTime, endTime), [startTime, endTime]);
 
@@ -103,6 +110,15 @@ export default function AddShiftsScreen() {
     borderCurve: 'continuous' as const,
     backgroundColor: isDark ? '#2d2d44' : '#f8f9fa',
   };
+  const sectionStyle = {
+    gap: 10,
+    padding: 16,
+    borderRadius: 16,
+    borderCurve: 'continuous' as const,
+    backgroundColor: isDark ? '#1a1a2e' : '#fff',
+    borderWidth: 1,
+    borderColor: isDark ? '#2d2d44' : '#e8eaed',
+  };
 
   return (
     <SheetScreen
@@ -120,17 +136,41 @@ export default function AddShiftsScreen() {
       <ScrollView
         style={{ flex: 1 }}
         contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={{ padding: 20, gap: 20, paddingBottom: 40 }}
+        contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 40 }}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={{ gap: 8 }}>
+        {process.env.EXPO_OS === 'android' ? (
+          <View style={{ gap: 2, paddingHorizontal: 4 }}>
+            <ThemedText type="title" style={{ fontSize: 28, lineHeight: 34 }}>
+              Add Shifts
+            </ThemedText>
+            <ThemedText style={{ opacity: 0.65 }}>Assign shifts to your team</ThemedText>
+          </View>
+        ) : null}
+
+        <View style={sectionStyle}>
           <ThemedText style={{ fontSize: 14, fontWeight: '600', opacity: 0.8 }}>
             Staff Member *
           </ThemedText>
-          <Pressable style={pickerButtonStyle} onPress={() => setShowStaffPicker((prev) => !prev)}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Pressable
+            style={({ pressed }) => [pickerButtonStyle, { opacity: pressed ? 0.7 : 1 }]}
+            onPress={() => setShowStaffPicker((prev) => !prev)}
+            accessibilityRole="button"
+            accessibilityLabel={selectedStaff ? `Staff member, ${selectedStaff.name}` : 'Staff member'}
+            accessibilityValue={selectedStaff ? { text: selectedStaff.name } : undefined}
+            accessibilityState={{ expanded: showStaffPicker }}
+          >
+            <View
+              style={{
+                flex: 1,
+                minWidth: 0,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
               {selectedStaff ? (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <View style={{ flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                   <View
                     style={{
                       width: 16,
@@ -139,7 +179,7 @@ export default function AddShiftsScreen() {
                       backgroundColor: selectedStaff.color,
                     }}
                   />
-                  <ThemedText style={{ fontSize: 16 }}>{selectedStaff.name}</ThemedText>
+                  <ThemedText style={{ flexShrink: 1, fontSize: 16 }}>{selectedStaff.name}</ThemedText>
                 </View>
               ) : (
                 <ThemedText style={{ fontSize: 16, opacity: 0.5 }}>Select staff member</ThemedText>
@@ -168,11 +208,17 @@ export default function AddShiftsScreen() {
                     setSelectedStaff(member);
                     setShowStaffPicker(false);
                   }}
+                  accessibilityRole="radio"
+                  accessibilityLabel={member.name}
+                  accessibilityState={{ selected: selectedStaff?.id === member.id, checked: selectedStaff?.id === member.id }}
                   style={{
-                    padding: 14,
+                    minHeight: 52,
+                    paddingHorizontal: 14,
                     flexDirection: 'row',
                     alignItems: 'center',
                     gap: 10,
+                    borderTopWidth: member.id === staffList[0]?.id ? 0 : 1,
+                    borderTopColor: isDark ? '#2d2d44' : '#e8eaed',
                     backgroundColor:
                       selectedStaff?.id === member.id ? (isDark ? '#3a3a5a' : '#e8f4f8') : undefined,
                   }}
@@ -185,19 +231,76 @@ export default function AddShiftsScreen() {
                       backgroundColor: member.color,
                     }}
                   />
-                  <ThemedText>{member.name}</ThemedText>
+                  <ThemedText style={{ flex: 1, flexShrink: 1 }}>{member.name}</ThemedText>
+                  {selectedStaff?.id === member.id ? (
+                    <Icon sf="checkmark" md="check" size={20} color="#4ECDC4" />
+                  ) : null}
                 </Pressable>
               ))}
             </View>
           ) : null}
         </View>
 
-        <View style={{ gap: 8 }}>
+        <View style={sectionStyle}>
           <ThemedText style={{ fontSize: 14, fontWeight: '600', opacity: 0.8 }}>
             Select Dates *
           </ThemedText>
-          <ThemedText style={{ fontSize: 12, fontStyle: 'italic', color: isDark ? '#888' : '#666' }}>
-            Press = Primary • Long press = Secondary
+          {process.env.EXPO_OS === 'ios' ? (
+            <SegmentedControl
+              values={['Primary', 'Secondary']}
+              selectedIndex={selectionMode === 'primary' ? 0 : 1}
+              onChange={({ nativeEvent }) => {
+                setSelectionMode(nativeEvent.selectedSegmentIndex === 0 ? 'primary' : 'secondary');
+              }}
+            />
+          ) : (
+            <View
+              style={{
+                flexDirection: 'row',
+                padding: 4,
+                borderRadius: 12,
+                borderCurve: 'continuous',
+                backgroundColor: isDark ? '#303047' : '#e8eaed',
+              }}
+              accessibilityRole="radiogroup"
+              accessibilityLabel="Shift type"
+            >
+              {(['primary', 'secondary'] as ShiftType[]).map((type) => {
+                const selected = selectionMode === type;
+                return (
+                  <Pressable
+                    key={type}
+                    onPress={() => setSelectionMode(type)}
+                    accessibilityRole="radio"
+                    accessibilityLabel={`${type === 'primary' ? 'Primary' : 'Secondary'} shift mode`}
+                    accessibilityState={{ selected, checked: selected }}
+                    android_ripple={{ color: 'rgba(78,205,196,0.24)' }}
+                    style={({ pressed }) => ({
+                      flex: 1,
+                      minHeight: 40,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      borderRadius: 9,
+                      backgroundColor: selected ? '#4ECDC4' : 'transparent',
+                      opacity: pressed ? 0.8 : 1,
+                    })}
+                  >
+                    <ThemedText
+                      style={{
+                        fontSize: 14,
+                        fontWeight: selected ? '700' : '500',
+                        color: selected ? '#073b3a' : isDark ? '#f0f2f5' : '#1a1a2e',
+                      }}
+                    >
+                      {type === 'primary' ? 'Primary' : 'Secondary'}
+                    </ThemedText>
+                  </Pressable>
+                );
+              })}
+            </View>
+          )}
+          <ThemedText style={{ fontSize: 12, color: isDark ? '#aaa' : '#666' }}>
+            Tap dates to mark them as {selectionMode === 'primary' ? 'Primary' : 'Secondary'}.
           </ThemedText>
 
           <View
@@ -236,56 +339,80 @@ export default function AddShiftsScreen() {
             ))}
           </View>
 
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
-            {calendarDays.map((day, index) => {
-              const selection = getDateSelection(day);
-              const isCurrentMonth = day.getMonth() === currentMonth.getMonth();
-              const isCurrentDay = isToday(day);
-              return (
-                <Pressable
-                  key={index}
-                  onPress={() => toggleDateSelection(day, 'primary')}
-                  onLongPress={() => toggleDateSelection(day, 'secondary')}
-                  delayLongPress={500}
-                  style={{
-                    width: '13.7%',
-                    aspectRatio: 1,
-                    borderRadius: 8,
-                    borderCurve: 'continuous',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    marginBottom: 4,
-                    backgroundColor: selection
-                      ? selection.type === 'primary'
-                        ? '#4ECDC4'
-                        : '#F7DC6F'
-                      : isDark
-                        ? '#2d2d44'
-                        : '#f8f9fa',
-                    borderColor: isCurrentDay
-                      ? '#FF6B6B'
-                      : selection
-                        ? selection.type === 'primary'
-                          ? '#4ECDC4'
-                          : '#F7DC6F'
-                        : isDark
-                          ? '#3a3a5a'
-                          : '#e0e0e0',
-                    borderWidth: isCurrentDay ? 2 : 1,
-                    opacity: isCurrentMonth ? 1 : 0.3,
-                  }}
-                >
-                  <ThemedText
-                    style={[
-                      { fontSize: 14, fontVariant: ['tabular-nums'] },
-                      selection ? { color: '#fff', fontWeight: '600' } : null,
-                    ]}
-                  >
-                    {format(day, 'd')}
-                  </ThemedText>
-                </Pressable>
-              );
-            })}
+          <View style={{ gap: 6 }}>
+            {calendarWeeks.map((week, weekIndex) => (
+              <View key={`week-${weekIndex}`} style={{ flexDirection: 'row', gap: 6 }}>
+                {week.map((day) => {
+                  const selection = getDateSelection(day);
+                  const isCurrentMonth = day.getMonth() === currentMonth.getMonth();
+                  const isCurrentDay = isToday(day);
+                  return (
+                    <Pressable
+                      key={day.toISOString()}
+                      onPress={() => toggleDateSelection(day, selectionMode)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${format(day, 'EEEE, MMMM d')}${selection ? `, ${selection.type}` : ''}`}
+                      accessibilityState={{ selected: !!selection }}
+                      style={({ pressed }) => ({
+                        flex: 1,
+                        minHeight: 42,
+                        borderRadius: 8,
+                        borderCurve: 'continuous',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        position: 'relative',
+                        backgroundColor: selection
+                          ? selection.type === 'primary'
+                            ? '#4ECDC4'
+                            : '#F7DC6F'
+                          : isDark
+                            ? '#2d2d44'
+                            : '#f8f9fa',
+                        borderColor: isCurrentDay
+                          ? '#FF6B6B'
+                          : selection
+                            ? selection.type === 'primary'
+                              ? '#4ECDC4'
+                              : '#F7DC6F'
+                            : isDark
+                              ? '#3a3a5a'
+                              : '#e0e0e0',
+                        borderWidth: isCurrentDay ? 2 : 1,
+                        opacity: pressed ? 0.7 : isCurrentMonth ? 1 : 0.3,
+                      })}
+                    >
+                      <View style={{ alignItems: 'center' }}>
+                        <ThemedText
+                          style={[
+                            { fontSize: 14, fontVariant: ['tabular-nums'] },
+                            selection
+                              ? {
+                                  color: selection.type === 'secondary' ? '#342d00' : '#073b3a',
+                                  fontWeight: '700',
+                                }
+                              : null,
+                          ]}
+                        >
+                          {format(day, 'd')}
+                        </ThemedText>
+                        {selection ? (
+                          <ThemedText
+                            style={{
+                              fontSize: 9,
+                              lineHeight: 11,
+                              fontWeight: '800',
+                              color: selection.type === 'secondary' ? '#342d00' : '#073b3a',
+                            }}
+                          >
+                            {selection.type === 'primary' ? 'P' : 'S'}
+                          </ThemedText>
+                        ) : null}
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            ))}
           </View>
 
           {selectedDates.length > 0 ? (
@@ -307,7 +434,7 @@ export default function AddShiftsScreen() {
           ) : null}
         </View>
 
-        <View style={{ flexDirection: 'row', gap: 16 }}>
+        <View style={[sectionStyle, { flexDirection: 'row', gap: 12 }]}>
           <TimeField label="Start Time *" value={startTime} onChange={setStartTime} isDark={isDark} />
           <TimeField label="End Time *" value={endTime} onChange={setEndTime} isDark={isDark} />
         </View>
@@ -331,7 +458,7 @@ export default function AddShiftsScreen() {
           </View>
         ) : null}
 
-        <View style={{ gap: 8 }}>
+        <View style={sectionStyle}>
           <ThemedText style={{ fontSize: 14, fontWeight: '600', opacity: 0.8 }}>Notes</ThemedText>
           <TextInput
             style={{

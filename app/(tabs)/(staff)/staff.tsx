@@ -58,12 +58,17 @@ export default function StaffScreen() {
         contentContainerStyle={{
           paddingHorizontal: 16,
           paddingBottom: 24,
-          gap: 12,
+          gap: process.env.EXPO_OS === 'ios' ? 0 : 12,
           paddingTop: 12,
           flexGrow: 1,
         }}
-        renderItem={({ item }) => (
-          <StaffRow staffMember={item} onDelete={() => handleDeleteStaff(item)} />
+        renderItem={({ item, index }) => (
+          <StaffRow
+            staffMember={item}
+            onDelete={() => handleDeleteStaff(item)}
+            isFirst={index === 0}
+            isLast={index === filteredStaff.length - 1}
+          />
         )}
         ListHeaderComponent={
           process.env.EXPO_OS === 'ios' ? null : (
