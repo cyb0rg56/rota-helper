@@ -1,26 +1,17 @@
-import { generateId } from '@/utils/id';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { useState } from 'react';
+import { Pressable, ScrollView, TextInput, View } from 'react-native';
 
+import { SheetScreen } from '@/components/header-actions';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAppDispatch, useAppSelector } from '@/store';
 import { addStaff, getNextStaffColor } from '@/store/slices/staffSlice';
 import { STAFF_COLORS } from '@/types';
+import { generateId } from '@/utils/id';
 
 export default function AddStaffScreen() {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const isDark = useColorScheme() === 'dark';
   const dispatch = useAppDispatch();
   const existingStaff = useAppSelector((state) => state.staff.items);
 
@@ -47,141 +38,90 @@ export default function AddStaffScreen() {
     router.back();
   };
 
-  const inputStyle = [
-    styles.input,
-    {
-      backgroundColor: isDark ? '#2d2d44' : '#f8f9fa',
-      color: isDark ? '#fff' : '#000',
-      borderColor: isDark ? '#3a3a5a' : '#e0e0e0',
-    },
-  ];
+  const inputStyle = {
+    padding: 16,
+    borderRadius: 12,
+    borderCurve: 'continuous' as const,
+    fontSize: 16,
+    backgroundColor: isDark ? '#2d2d44' : '#f8f9fa',
+    color: isDark ? '#fff' : '#000',
+  };
 
   return (
-    <ThemedView style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.container}
+    <SheetScreen
+      left={[{ key: 'cancel', label: 'Cancel', onPress: () => router.back() }]}
+      right={[
+        {
+          key: 'save',
+          label: 'Save',
+          prominent: true,
+          disabled: !name.trim(),
+          onPress: handleSave,
+        },
+      ]}
+    >
+      <ScrollView
+        style={{ flex: 1 }}
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={{ padding: 20, gap: 20 }}
+        keyboardShouldPersistTaps="handled"
       >
-        <ScrollView contentContainerStyle={styles.content}>
-          <View style={styles.field}>
-            <ThemedText style={styles.label}>Name *</ThemedText>
-            <TextInput
-              style={inputStyle}
-              value={name}
-              onChangeText={setName}
-              placeholder="Enter staff name"
-              placeholderTextColor={isDark ? '#666' : '#999'}
-              autoFocus
-            />
-          </View>
+        <View style={{ gap: 8 }}>
+          <ThemedText style={{ fontSize: 14, fontWeight: '600', opacity: 0.8 }}>Name *</ThemedText>
+          <TextInput
+            style={inputStyle}
+            value={name}
+            onChangeText={setName}
+            placeholder="Enter staff name"
+            placeholderTextColor={isDark ? '#666' : '#999'}
+            autoFocus
+          />
+        </View>
 
-          <View style={styles.field}>
-            <ThemedText style={styles.label}>Role</ThemedText>
-            <TextInput
-              style={inputStyle}
-              value={role}
-              onChangeText={setRole}
-              placeholder="e.g., Manager, Supervisor"
-              placeholderTextColor={isDark ? '#666' : '#999'}
-            />
-          </View>
+        <View style={{ gap: 8 }}>
+          <ThemedText style={{ fontSize: 14, fontWeight: '600', opacity: 0.8 }}>Role</ThemedText>
+          <TextInput
+            style={inputStyle}
+            value={role}
+            onChangeText={setRole}
+            placeholder="e.g., Manager, Supervisor"
+            placeholderTextColor={isDark ? '#666' : '#999'}
+          />
+        </View>
 
-          <View style={styles.field}>
-            <ThemedText style={styles.label}>Email</ThemedText>
-            <TextInput
-              style={inputStyle}
-              value={email}
-              onChangeText={setEmail}
-              placeholder="Enter email address"
-              placeholderTextColor={isDark ? '#666' : '#999'}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-          </View>
+        <View style={{ gap: 8 }}>
+          <ThemedText style={{ fontSize: 14, fontWeight: '600', opacity: 0.8 }}>Email</ThemedText>
+          <TextInput
+            style={inputStyle}
+            value={email}
+            onChangeText={setEmail}
+            placeholder="Enter email address"
+            placeholderTextColor={isDark ? '#666' : '#999'}
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
+        </View>
 
-          <View style={styles.field}>
-            <ThemedText style={styles.label}>Color</ThemedText>
-            <View style={styles.colorGrid}>
-              {STAFF_COLORS.map((color) => (
-                <TouchableOpacity
-                  key={color}
-                  style={[
-                    styles.colorOption,
-                    { backgroundColor: color },
-                    selectedColor === color && styles.colorSelected,
-                  ]}
-                  onPress={() => setSelectedColor(color)}
-                />
-              ))}
-            </View>
+        <View style={{ gap: 8 }}>
+          <ThemedText style={{ fontSize: 14, fontWeight: '600', opacity: 0.8 }}>Color</ThemedText>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+            {STAFF_COLORS.map((color) => (
+              <Pressable
+                key={color}
+                onPress={() => setSelectedColor(color)}
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 22,
+                  backgroundColor: color,
+                  borderWidth: selectedColor === color ? 3 : 0,
+                  borderColor: '#fff',
+                }}
+              />
+            ))}
           </View>
-
-          <TouchableOpacity
-            style={[
-              styles.saveButton,
-              { backgroundColor: name.trim() ? '#4ECDC4' : '#999' },
-            ]}
-            onPress={handleSave}
-            disabled={!name.trim()}
-          >
-            <ThemedText style={styles.saveButtonText}>Add Staff Member</ThemedText>
-          </TouchableOpacity>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </ThemedView>
+        </View>
+      </ScrollView>
+    </SheetScreen>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  content: {
-    padding: 20,
-  },
-  field: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 8,
-    opacity: 0.8,
-  },
-  input: {
-    padding: 16,
-    borderRadius: 12,
-    fontSize: 16,
-    borderWidth: 1,
-  },
-  colorGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  colorOption: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-  },
-  colorSelected: {
-    borderWidth: 3,
-    borderColor: '#fff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  saveButton: {
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  saveButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
-  },
-});

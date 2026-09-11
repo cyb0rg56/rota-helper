@@ -1,5 +1,3 @@
-import { generateId } from '@/utils/id';
-import { Ionicons } from '@expo/vector-icons';
 import {
   addDays,
   addMonths,
@@ -9,32 +7,22 @@ import {
   isSameDay,
   isToday,
   startOfMonth,
-  subMonths
+  subMonths,
 } from 'date-fns';
 import { router } from 'expo-router';
-import React, { useMemo, useState } from 'react';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { useMemo, useState } from 'react';
+import { Pressable, ScrollView, TextInput, View } from 'react-native';
 
+import { SheetScreen } from '@/components/header-actions';
+import { Icon } from '@/components/icon';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
+import { TimeField } from '@/components/time-field';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAppDispatch, useAppSelector } from '@/store';
 import { addShift } from '@/store/slices/shiftSlice';
 import { ShiftType, Staff } from '@/types';
-
-const TIME_OPTIONS = Array.from({ length: 48 }, (_, i) => {
-  const hour = Math.floor(i / 2);
-  const minute = (i % 2) * 30;
-  return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-});
+import { generateId } from '@/utils/id';
+import { isOvernight } from '@/utils/time';
 
 interface SelectedDate {
   date: Date;
@@ -42,10 +30,8 @@ interface SelectedDate {
 }
 
 export default function AddShiftsScreen() {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const isDark = useColorScheme() === 'dark';
   const dispatch = useAppDispatch();
-  
   const staffList = useAppSelector((state) => state.staff.items);
 
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -56,69 +42,42 @@ export default function AddShiftsScreen() {
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('17:00');
   const [notes, setNotes] = useState('');
-  
   const [showStaffPicker, setShowStaffPicker] = useState(false);
-  const [showStartTimePicker, setShowStartTimePicker] = useState(false);
-  const [showEndTimePicker, setShowEndTimePicker] = useState(false);
 
-  // Get calendar days for current month
   const calendarDays = useMemo(() => {
     const monthStart = startOfMonth(currentMonth);
     const startDay = getDay(monthStart);
-    
-    // Adjust for Monday start (getDay returns 0=Sunday)
-    const daysToShow = (startDay === 0 ? 6 : startDay - 1);
+    const daysToShow = startDay === 0 ? 6 : startDay - 1;
     const calendarStart = addDays(monthStart, -daysToShow);
-    
-    // Show 6 weeks to cover all possibilities
     const calendarEnd = addDays(calendarStart, 41);
-    
     return eachDayOfInterval({ start: calendarStart, end: calendarEnd });
   }, [currentMonth]);
 
-  // Check if this is an overnight shift
-  const isOvernightShift = useMemo(() => {
-    const [startH, startM] = startTime.split(':').map(Number);
-    const [endH, endM] = endTime.split(':').map(Number);
-    return endH < startH || (endH === startH && endM < startM);
-  }, [startTime, endTime]);
+  const overnight = useMemo(() => isOvernight(startTime, endTime), [startTime, endTime]);
 
   const toggleDateSelection = (date: Date, type: ShiftType) => {
     setSelectedDates((prev) => {
-      const existingIndex = prev.findIndex((d) => isSameDay(d.date, date));
-      
+      const existingIndex = prev.findIndex((item) => isSameDay(item.date, date));
       if (existingIndex !== -1) {
         const existing = prev[existingIndex];
-        // If same type, remove it. If different type, update it
         if (existing.type === type) {
-          return prev.filter((_, i) => i !== existingIndex);
-        } else {
-          const updated = [...prev];
-          updated[existingIndex] = { date, type };
-          return updated;
+          return prev.filter((_, index) => index !== existingIndex);
         }
-      } else {
-        return [...prev, { date, type }].sort((a, b) => a.date.getTime() - b.date.getTime());
+        const updated = [...prev];
+        updated[existingIndex] = { date, type };
+        return updated;
       }
+      return [...prev, { date, type }].sort((a, b) => a.date.getTime() - b.date.getTime());
     });
   };
 
-  const getDateSelection = (date: Date): SelectedDate | undefined => {
-    return selectedDates.find((d) => isSameDay(d.date, date));
-  };
-
-  const navigateMonth = (direction: 'prev' | 'next') => {
-    setCurrentMonth((prev) =>
-      direction === 'next' ? addMonths(prev, 1) : subMonths(prev, 1)
-    );
-  };
+  const getDateSelection = (date: Date) => selectedDates.find((item) => isSameDay(item.date, date));
 
   const handleSave = () => {
     if (!selectedStaff || selectedDates.length === 0) {
       return;
     }
 
-    // Create a shift for each selected date
     selectedDates.forEach(({ date, type }) => {
       dispatch(
         addShift({
@@ -136,473 +95,261 @@ export default function AddShiftsScreen() {
     router.back();
   };
 
-  const inputStyle = [
-    styles.input,
-    {
-      backgroundColor: isDark ? '#2d2d44' : '#f8f9fa',
-      borderColor: isDark ? '#3a3a5a' : '#e0e0e0',
-    },
-  ];
-
-  const pickerStyle = [
-    styles.picker,
-    {
-      backgroundColor: isDark ? '#1a1a2e' : '#fff',
-      borderColor: isDark ? '#3a3a5a' : '#e0e0e0',
-    },
-  ];
-
-  const primaryCount = selectedDates.filter(d => d.type === 'primary').length;
-  const secondaryCount = selectedDates.filter(d => d.type === 'secondary').length;
+  const primaryCount = selectedDates.filter((item) => item.type === 'primary').length;
+  const secondaryCount = selectedDates.filter((item) => item.type === 'secondary').length;
+  const pickerButtonStyle = {
+    padding: 16,
+    borderRadius: 12,
+    borderCurve: 'continuous' as const,
+    backgroundColor: isDark ? '#2d2d44' : '#f8f9fa',
+  };
 
   return (
-    <ThemedView style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.container}
+    <SheetScreen
+      left={[{ key: 'cancel', label: 'Cancel', onPress: () => router.back() }]}
+      right={[
+        {
+          key: 'create',
+          label: selectedDates.length > 0 ? `Create ${selectedDates.length}` : 'Create',
+          prominent: true,
+          disabled: !selectedStaff || selectedDates.length === 0,
+          onPress: handleSave,
+        },
+      ]}
+    >
+      <ScrollView
+        style={{ flex: 1 }}
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={{ padding: 20, gap: 20, paddingBottom: 40 }}
+        keyboardShouldPersistTaps="handled"
       >
-        <ScrollView contentContainerStyle={styles.content}>
-          {/* Staff Selection */}
-          <View style={styles.field}>
-            <ThemedText style={styles.label}>Staff Member *</ThemedText>
-            <TouchableOpacity
-              style={inputStyle}
-              onPress={() => setShowStaffPicker(!showStaffPicker)}
-            >
-              <View style={styles.pickerButton}>
-                {selectedStaff ? (
-                  <View style={styles.selectedStaff}>
-                    <View
-                      style={[styles.staffColor, { backgroundColor: selectedStaff.color }]}
-                    />
-                    <ThemedText style={styles.pickerText}>{selectedStaff.name}</ThemedText>
-                  </View>
-                ) : (
-                  <ThemedText style={styles.placeholderText}>Select staff member</ThemedText>
-                )}
-                <Ionicons
-                  name={showStaffPicker ? 'chevron-up' : 'chevron-down'}
-                  size={20}
-                  color={isDark ? '#666' : '#999'}
-                />
-              </View>
-            </TouchableOpacity>
-            
-            {showStaffPicker && (
-              <View style={pickerStyle}>
-                {staffList.map((staff) => (
-                  <TouchableOpacity
-                    key={staff.id}
-                    style={[
-                      styles.pickerOption,
-                      selectedStaff?.id === staff.id && {
-                        backgroundColor: isDark ? '#3a3a5a' : '#e8f4f8',
-                      },
-                    ]}
-                    onPress={() => {
-                      setSelectedStaff(staff);
-                      setShowStaffPicker(false);
+        <View style={{ gap: 8 }}>
+          <ThemedText style={{ fontSize: 14, fontWeight: '600', opacity: 0.8 }}>
+            Staff Member *
+          </ThemedText>
+          <Pressable style={pickerButtonStyle} onPress={() => setShowStaffPicker((prev) => !prev)}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              {selectedStaff ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <View
+                    style={{
+                      width: 16,
+                      height: 16,
+                      borderRadius: 8,
+                      backgroundColor: selectedStaff.color,
                     }}
-                  >
-                    <View style={[styles.staffColor, { backgroundColor: staff.color }]} />
-                    <ThemedText>{staff.name}</ThemedText>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-          </View>
-
-          {/* Calendar Selection */}
-          <View style={styles.field}>
-            <ThemedText style={styles.label}>Select Dates *</ThemedText>
-            <ThemedText style={[styles.helpText, { color: isDark ? '#888' : '#666' }]}>
-              Press = Primary • Long press = Secondary
-            </ThemedText>
-            
-            {/* Month Navigator */}
-            <View style={[styles.monthNavigator, { backgroundColor: isDark ? '#2d2d44' : '#f0f0f0' }]}>
-              <TouchableOpacity
-                style={styles.navButton}
-                onPress={() => navigateMonth('prev')}
-              >
-                <Ionicons name="chevron-back" size={24} color={isDark ? '#fff' : '#333'} />
-              </TouchableOpacity>
-              
-              <View style={styles.monthLabel}>
-                <ThemedText style={styles.monthText}>
-                  {format(currentMonth, 'MMMM yyyy')}
-                </ThemedText>
-              </View>
-              
-              <TouchableOpacity
-                style={styles.navButton}
-                onPress={() => navigateMonth('next')}
-              >
-                <Ionicons name="chevron-forward" size={24} color={isDark ? '#fff' : '#333'} />
-              </TouchableOpacity>
-            </View>
-
-            {/* Weekday Headers */}
-            <View style={styles.weekdayRow}>
-              {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
-                <View key={day} style={styles.weekdayCell}>
-                  <ThemedText style={styles.weekdayText}>{day}</ThemedText>
+                  />
+                  <ThemedText style={{ fontSize: 16 }}>{selectedStaff.name}</ThemedText>
                 </View>
+              ) : (
+                <ThemedText style={{ fontSize: 16, opacity: 0.5 }}>Select staff member</ThemedText>
+              )}
+              <Icon
+                sf={showStaffPicker ? 'chevron.up' : 'chevron.down'}
+                md={showStaffPicker ? 'chevron-up' : 'chevron-down'}
+                size={20}
+                color={isDark ? '#666' : '#999'}
+              />
+            </View>
+          </Pressable>
+          {showStaffPicker ? (
+            <View
+              style={{
+                borderRadius: 12,
+                borderCurve: 'continuous',
+                overflow: 'hidden',
+                backgroundColor: isDark ? '#1a1a2e' : '#fff',
+              }}
+            >
+              {staffList.map((member) => (
+                <Pressable
+                  key={member.id}
+                  onPress={() => {
+                    setSelectedStaff(member);
+                    setShowStaffPicker(false);
+                  }}
+                  style={{
+                    padding: 14,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 10,
+                    backgroundColor:
+                      selectedStaff?.id === member.id ? (isDark ? '#3a3a5a' : '#e8f4f8') : undefined,
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 16,
+                      height: 16,
+                      borderRadius: 8,
+                      backgroundColor: member.color,
+                    }}
+                  />
+                  <ThemedText>{member.name}</ThemedText>
+                </Pressable>
               ))}
             </View>
+          ) : null}
+        </View>
 
-            {/* Calendar Grid */}
-            <View style={styles.calendarGrid}>
-              {calendarDays.map((day, index) => {
-                const selection = getDateSelection(day);
-                const isCurrentMonth = day.getMonth() === currentMonth.getMonth();
-                const isCurrentDay = isToday(day);
-                
-                return (
-                  <TouchableOpacity
-                    key={index}
-                    style={[
-                      styles.dayCell,
-                      {
-                        backgroundColor: selection
-                          ? selection.type === 'primary'
-                            ? '#4ECDC4'
-                            : '#F7DC6F'
-                          : isDark
-                          ? '#2d2d44'
-                          : '#f8f9fa',
-                        borderColor: isCurrentDay
-                          ? '#FF6B6B'
-                          : selection
-                          ? selection.type === 'primary'
-                            ? '#4ECDC4'
-                            : '#F7DC6F'
-                          : isDark
-                          ? '#3a3a5a'
-                          : '#e0e0e0',
-                        borderWidth: isCurrentDay ? 2 : 1,
-                        opacity: isCurrentMonth ? 1 : 0.3,
-                      },
-                    ]}
-                    onPress={() => toggleDateSelection(day, 'primary')}
-                    onLongPress={() => toggleDateSelection(day, 'secondary')}
-                    delayLongPress={500}
-                    activeOpacity={0.7}
-                  >
-                    <ThemedText
-                      style={[
-                        styles.dayNumber,
-                        selection && { color: '#fff', fontWeight: '600' },
-                      ]}
-                    >
-                      {format(day, 'd')}
-                    </ThemedText>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+        <View style={{ gap: 8 }}>
+          <ThemedText style={{ fontSize: 14, fontWeight: '600', opacity: 0.8 }}>
+            Select Dates *
+          </ThemedText>
+          <ThemedText style={{ fontSize: 12, fontStyle: 'italic', color: isDark ? '#888' : '#666' }}>
+            Press = Primary • Long press = Secondary
+          </ThemedText>
 
-            {selectedDates.length > 0 && (
-              <View style={[styles.selectionSummary, { backgroundColor: isDark ? '#2d2d44' : '#e8f4f8' }]}>
-                <ThemedText style={styles.summaryText}>
-                  {primaryCount > 0 && `${primaryCount} Primary`}
-                  {primaryCount > 0 && secondaryCount > 0 && ' • '}
-                  {secondaryCount > 0 && `${secondaryCount} Secondary`}
-                </ThemedText>
-              </View>
-            )}
-          </View>
-
-          {/* Time Selection */}
-          <View style={styles.timeRow}>
-            <View style={[styles.field, { flex: 1 }]}>
-              <ThemedText style={styles.label}>Start Time *</ThemedText>
-              <TouchableOpacity
-                style={inputStyle}
-                onPress={() => {
-                  setShowStartTimePicker(!showStartTimePicker);
-                  setShowEndTimePicker(false);
-                }}
-              >
-                <View style={styles.pickerButton}>
-                  <ThemedText style={styles.pickerText}>{startTime}</ThemedText>
-                  <Ionicons
-                    name={showStartTimePicker ? 'chevron-up' : 'chevron-down'}
-                    size={20}
-                    color={isDark ? '#666' : '#999'}
-                  />
-                </View>
-              </TouchableOpacity>
-              
-              {showStartTimePicker && (
-                <ScrollView style={[pickerStyle, styles.timePicker]} nestedScrollEnabled>
-                  {TIME_OPTIONS.map((time) => (
-                    <TouchableOpacity
-                      key={time}
-                      style={[
-                        styles.pickerOption,
-                        startTime === time && {
-                          backgroundColor: isDark ? '#3a3a5a' : '#e8f4f8',
-                        },
-                      ]}
-                      onPress={() => {
-                        setStartTime(time);
-                        setShowStartTimePicker(false);
-                      }}
-                    >
-                      <ThemedText>{time}</ThemedText>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              )}
-            </View>
-
-            <View style={[styles.field, { flex: 1 }]}>
-              <ThemedText style={styles.label}>End Time *</ThemedText>
-              <TouchableOpacity
-                style={inputStyle}
-                onPress={() => {
-                  setShowEndTimePicker(!showEndTimePicker);
-                  setShowStartTimePicker(false);
-                }}
-              >
-                <View style={styles.pickerButton}>
-                  <ThemedText style={styles.pickerText}>{endTime}</ThemedText>
-                  <Ionicons
-                    name={showEndTimePicker ? 'chevron-up' : 'chevron-down'}
-                    size={20}
-                    color={isDark ? '#666' : '#999'}
-                  />
-                </View>
-              </TouchableOpacity>
-              
-              {showEndTimePicker && (
-                <ScrollView style={[pickerStyle, styles.timePicker]} nestedScrollEnabled>
-                  {TIME_OPTIONS.map((time) => (
-                    <TouchableOpacity
-                      key={time}
-                      style={[
-                        styles.pickerOption,
-                        endTime === time && {
-                          backgroundColor: isDark ? '#3a3a5a' : '#e8f4f8',
-                        },
-                      ]}
-                      onPress={() => {
-                        setEndTime(time);
-                        setShowEndTimePicker(false);
-                      }}
-                    >
-                      <ThemedText>{time}</ThemedText>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              )}
-            </View>
-          </View>
-
-          {/* Overnight Shift Indicator */}
-          {isOvernightShift && (
-            <View style={[styles.overnightBanner, { backgroundColor: isDark ? '#3d3a2e' : '#fff8e1' }]}>
-              <Ionicons name="moon" size={18} color="#F7DC6F" />
-              <ThemedText style={styles.overnightText}>
-                Overnight shifts - each will end the following day
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              borderRadius: 12,
+              borderCurve: 'continuous',
+              backgroundColor: isDark ? '#2d2d44' : '#f0f0f0',
+            }}
+          >
+            <Pressable
+              onPress={() => setCurrentMonth((prev) => subMonths(prev, 1))}
+              style={{ padding: 12 }}
+            >
+              <Icon sf="chevron.left" md="chevron-left" size={24} color={isDark ? '#fff' : '#333'} />
+            </Pressable>
+            <View style={{ flex: 1, alignItems: 'center' }}>
+              <ThemedText style={{ fontSize: 16, fontWeight: '600' }}>
+                {format(currentMonth, 'MMMM yyyy')}
               </ThemedText>
             </View>
-          )}
-
-          {/* Notes */}
-          <View style={styles.field}>
-            <ThemedText style={styles.label}>Notes</ThemedText>
-            <TextInput
-              style={[
-                inputStyle,
-                styles.notesInput,
-                { color: isDark ? '#fff' : '#000' },
-              ]}
-              value={notes}
-              onChangeText={setNotes}
-              placeholder="Optional notes for these shifts"
-              placeholderTextColor={isDark ? '#666' : '#999'}
-              multiline
-              numberOfLines={3}
-            />
+            <Pressable
+              onPress={() => setCurrentMonth((prev) => addMonths(prev, 1))}
+              style={{ padding: 12 }}
+            >
+              <Icon sf="chevron.right" md="chevron-right" size={24} color={isDark ? '#fff' : '#333'} />
+            </Pressable>
           </View>
 
-          <TouchableOpacity
-            style={[
-              styles.saveButton,
-              {
-                backgroundColor:
-                  selectedStaff && selectedDates.length > 0 ? '#4ECDC4' : '#999',
-              },
-            ]}
-            onPress={handleSave}
-            disabled={!selectedStaff || selectedDates.length === 0}
+          <View style={{ flexDirection: 'row' }}>
+            {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
+              <View key={day} style={{ flex: 1, alignItems: 'center', paddingVertical: 8 }}>
+                <ThemedText style={{ fontSize: 12, fontWeight: '600', opacity: 0.6 }}>{day}</ThemedText>
+              </View>
+            ))}
+          </View>
+
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+            {calendarDays.map((day, index) => {
+              const selection = getDateSelection(day);
+              const isCurrentMonth = day.getMonth() === currentMonth.getMonth();
+              const isCurrentDay = isToday(day);
+              return (
+                <Pressable
+                  key={index}
+                  onPress={() => toggleDateSelection(day, 'primary')}
+                  onLongPress={() => toggleDateSelection(day, 'secondary')}
+                  delayLongPress={500}
+                  style={{
+                    width: '13.7%',
+                    aspectRatio: 1,
+                    borderRadius: 8,
+                    borderCurve: 'continuous',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginBottom: 4,
+                    backgroundColor: selection
+                      ? selection.type === 'primary'
+                        ? '#4ECDC4'
+                        : '#F7DC6F'
+                      : isDark
+                        ? '#2d2d44'
+                        : '#f8f9fa',
+                    borderColor: isCurrentDay
+                      ? '#FF6B6B'
+                      : selection
+                        ? selection.type === 'primary'
+                          ? '#4ECDC4'
+                          : '#F7DC6F'
+                        : isDark
+                          ? '#3a3a5a'
+                          : '#e0e0e0',
+                    borderWidth: isCurrentDay ? 2 : 1,
+                    opacity: isCurrentMonth ? 1 : 0.3,
+                  }}
+                >
+                  <ThemedText
+                    style={[
+                      { fontSize: 14, fontVariant: ['tabular-nums'] },
+                      selection ? { color: '#fff', fontWeight: '600' } : null,
+                    ]}
+                  >
+                    {format(day, 'd')}
+                  </ThemedText>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {selectedDates.length > 0 ? (
+            <View
+              style={{
+                padding: 12,
+                borderRadius: 10,
+                borderCurve: 'continuous',
+                alignItems: 'center',
+                backgroundColor: isDark ? '#2d2d44' : '#e8f4f8',
+              }}
+            >
+              <ThemedText style={{ fontSize: 14, fontWeight: '600', fontVariant: ['tabular-nums'] }}>
+                {primaryCount > 0 ? `${primaryCount} Primary` : ''}
+                {primaryCount > 0 && secondaryCount > 0 ? ' • ' : ''}
+                {secondaryCount > 0 ? `${secondaryCount} Secondary` : ''}
+              </ThemedText>
+            </View>
+          ) : null}
+        </View>
+
+        <View style={{ flexDirection: 'row', gap: 16 }}>
+          <TimeField label="Start Time *" value={startTime} onChange={setStartTime} isDark={isDark} />
+          <TimeField label="End Time *" value={endTime} onChange={setEndTime} isDark={isDark} />
+        </View>
+
+        {overnight ? (
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 10,
+              padding: 12,
+              borderRadius: 10,
+              borderCurve: 'continuous',
+              backgroundColor: isDark ? '#3d3a2e' : '#fff8e1',
+            }}
           >
-            <ThemedText style={styles.saveButtonText}>
-              Create {selectedDates.length > 0 ? selectedDates.length : ''} Shift
-              {selectedDates.length !== 1 ? 's' : ''}
+            <Icon sf="moon.fill" md="weather-night" size={18} color="#F7DC6F" />
+            <ThemedText selectable style={{ fontSize: 14, flex: 1 }}>
+              Overnight shifts - each will end the following day
             </ThemedText>
-          </TouchableOpacity>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </ThemedView>
+          </View>
+        ) : null}
+
+        <View style={{ gap: 8 }}>
+          <ThemedText style={{ fontSize: 14, fontWeight: '600', opacity: 0.8 }}>Notes</ThemedText>
+          <TextInput
+            style={{
+              ...pickerButtonStyle,
+              minHeight: 80,
+              textAlignVertical: 'top',
+              color: isDark ? '#fff' : '#000',
+              fontSize: 16,
+            }}
+            value={notes}
+            onChangeText={setNotes}
+            placeholder="Optional notes for these shifts"
+            placeholderTextColor={isDark ? '#666' : '#999'}
+            multiline
+            numberOfLines={3}
+          />
+        </View>
+      </ScrollView>
+    </SheetScreen>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  content: {
-    padding: 20,
-    paddingBottom: 50,
-  },
-  field: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 8,
-    opacity: 0.8,
-  },
-  helpText: {
-    fontSize: 12,
-    marginBottom: 12,
-    fontStyle: 'italic',
-  },
-  input: {
-    padding: 16,
-    borderRadius: 12,
-    fontSize: 16,
-    borderWidth: 1,
-  },
-  pickerButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  pickerText: {
-    fontSize: 16,
-  },
-  placeholderText: {
-    fontSize: 16,
-    opacity: 0.5,
-  },
-  selectedStaff: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  staffColor: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-  },
-  picker: {
-    marginTop: 8,
-    borderRadius: 12,
-    borderWidth: 1,
-    overflow: 'hidden',
-  },
-  timePicker: {
-    maxHeight: 200,
-  },
-  pickerOption: {
-    padding: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  monthNavigator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 12,
-    marginBottom: 12,
-    overflow: 'hidden',
-  },
-  navButton: {
-    padding: 12,
-  },
-  monthLabel: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  monthText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  weekdayRow: {
-    flexDirection: 'row',
-    marginBottom: 4,
-  },
-  weekdayCell: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  weekdayText: {
-    fontSize: 12,
-    fontWeight: '600',
-    opacity: 0.6,
-  },
-  calendarGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  dayCell: {
-    width: '13.7%',
-    aspectRatio: 1,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-    marginBottom: 4,
-  },
-  dayNumber: {
-    fontSize: 14,
-  },
-  selectionSummary: {
-    marginTop: 12,
-    padding: 12,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  summaryText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  timeRow: {
-    flexDirection: 'row',
-    gap: 16,
-  },
-  notesInput: {
-    minHeight: 80,
-    textAlignVertical: 'top',
-  },
-  saveButton: {
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  saveButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  overnightBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    padding: 12,
-    borderRadius: 10,
-    marginBottom: 16,
-  },
-  overnightText: {
-    fontSize: 14,
-    flex: 1,
-  },
-});

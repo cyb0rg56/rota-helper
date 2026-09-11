@@ -1,14 +1,21 @@
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { Provider } from 'react-redux';
-import 'react-native-reanimated';
 
+import {
+  compactSheetDetents,
+  formSheetScreenOptions,
+  smallSheetDetents,
+} from '@/constants/navigation';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { store, loadPersistedState, persistState, useAppDispatch } from '@/store';
-import { setStaff } from '@/store/slices/staffSlice';
-import { setShifts } from '@/store/slices/shiftSlice';
 import { loadPersistedPeriod } from '@/store/slices/periodSlice';
+import { setShifts } from '@/store/slices/shiftSlice';
+import { setStaff } from '@/store/slices/staffSlice';
+import { loadPersistedState, schedulePersist, store, useAppDispatch } from '@/store';
+
+SplashScreen.preventAutoHideAsync();
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -20,7 +27,6 @@ function AppContent() {
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    // Load persisted state on app start
     const loadState = async () => {
       const persisted = await loadPersistedState();
       if (persisted) {
@@ -30,58 +36,68 @@ function AppContent() {
       }
       setIsReady(true);
     };
-    loadState();
+    void loadState();
   }, [dispatch]);
 
   useEffect(() => {
-    // Subscribe to store changes and persist
-    if (isReady) {
-      const unsubscribe = store.subscribe(() => {
-        persistState();
-      });
-      return () => unsubscribe();
+    if (!isReady) {
+      return;
     }
+
+    void SplashScreen.hideAsync();
+    const unsubscribe = store.subscribe(() => {
+      schedulePersist();
+    });
+    return () => unsubscribe();
   }, [isReady]);
 
   if (!isReady) {
-    return null; // Or a loading screen
+    return null;
   }
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen 
-          name="add-staff" 
-          options={{ 
-            presentation: 'modal', 
+        <Stack.Screen
+          name="add-staff"
+          options={{
+            ...formSheetScreenOptions,
             title: 'Add Staff Member',
-            headerStyle: { backgroundColor: colorScheme === 'dark' ? '#1a1a2e' : '#fff' },
-          }} 
+            sheetAllowedDetents: compactSheetDetents,
+          }}
         />
-        <Stack.Screen 
-          name="edit-staff" 
-          options={{ 
-            presentation: 'modal', 
+        <Stack.Screen
+          name="edit-staff"
+          options={{
+            ...formSheetScreenOptions,
             title: 'Edit Staff Member',
-            headerStyle: { backgroundColor: colorScheme === 'dark' ? '#1a1a2e' : '#fff' },
-          }} 
+            sheetAllowedDetents: compactSheetDetents,
+          }}
         />
-        <Stack.Screen 
-          name="add-shifts" 
-          options={{ 
-            presentation: 'modal', 
+        <Stack.Screen
+          name="add-shifts"
+          options={{
+            ...formSheetScreenOptions,
             title: 'Add Shifts',
-            headerStyle: { backgroundColor: colorScheme === 'dark' ? '#1a1a2e' : '#fff' },
-          }} 
+            sheetAllowedDetents: [1],
+          }}
         />
-        <Stack.Screen 
-          name="edit-shift" 
-          options={{ 
-            presentation: 'modal', 
+        <Stack.Screen
+          name="edit-shift"
+          options={{
+            ...formSheetScreenOptions,
             title: 'Edit Shift',
-            headerStyle: { backgroundColor: colorScheme === 'dark' ? '#1a1a2e' : '#fff' },
-          }} 
+            sheetAllowedDetents: [1],
+          }}
+        />
+        <Stack.Screen
+          name="calendar-name"
+          options={{
+            ...formSheetScreenOptions,
+            title: 'Calendar Name',
+            sheetAllowedDetents: smallSheetDetents,
+          }}
         />
       </Stack>
       <StatusBar style="auto" />

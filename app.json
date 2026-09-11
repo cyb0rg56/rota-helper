@@ -22,7 +22,8 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.cyb0rg56.rotahelper"
+      "package": "com.cyb0rg56.rotahelper",
+      "softwareKeyboardLayoutMode": "resize"
     },
     "web": {
       "output": "static",
@@ -43,15 +44,16 @@
         }
       ],
       "expo-font",
-      "expo-image",
-      "expo-web-browser",
       "expo-status-bar",
       [
         "expo-calendar",
         {
           "calendarPermission": "Rota Helper needs calendar access to export shifts."
         }
-      ]
+      ],
+      "expo-image",
+      "@react-native-community/datetimepicker",
+      "@react-native-vector-icons/material-design-icons"
     ],
     "experiments": {
       "typedRoutes": true,
