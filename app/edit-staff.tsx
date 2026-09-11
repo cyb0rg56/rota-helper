@@ -1,26 +1,27 @@
-import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
-import { Alert, Pressable, ScrollView, TextInput, View } from 'react-native';
+import { router, useLocalSearchParams } from "expo-router";
+import { useState } from "react";
+import { Pressable, ScrollView, TextInput, View } from "react-native";
 
-import { SheetScreen } from '@/components/header-actions';
-import { ThemedText } from '@/components/themed-text';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { useAppDispatch, useAppSelector } from '@/store';
-import { removeShiftsByStaff } from '@/store/slices/shiftSlice';
-import { removeStaff, updateStaff } from '@/store/slices/staffSlice';
-import { STAFF_COLORS } from '@/types';
+import { SheetScreen } from "@/components/header-actions";
+import { ThemedText } from "@/components/themed-text";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useAppDispatch, useAppSelector } from "@/store";
+import { updateStaff } from "@/store/slices/staffSlice";
+import { STAFF_COLORS } from "@/types";
 
 export default function EditStaffScreen() {
-  const isDark = useColorScheme() === 'dark';
+  const isDark = useColorScheme() === "dark";
   const dispatch = useAppDispatch();
   const { id } = useLocalSearchParams<{ id: string }>();
 
-  const staffMember = useAppSelector((state) => state.staff.items.find((item) => item.id === id));
+  const staffMember = useAppSelector((state) =>
+    state.staff.items.find((item) => item.id === id),
+  );
 
-  const [name, setName] = useState(staffMember?.name ?? '');
-  const [email, setEmail] = useState(staffMember?.email ?? '');
-  const [role, setRole] = useState(staffMember?.role ?? '');
-  const [selectedColor, setSelectedColor] = useState(staffMember?.color ?? '');
+  const [name, setName] = useState(staffMember?.name ?? "");
+  const [email, setEmail] = useState(staffMember?.email ?? "");
+  const [role, setRole] = useState(staffMember?.role ?? "");
+  const [selectedColor, setSelectedColor] = useState(staffMember?.color ?? "");
 
   if (!staffMember) {
     return (
@@ -46,55 +47,28 @@ export default function EditStaffScreen() {
         email: email.trim() || undefined,
         role: role.trim() || undefined,
         color: selectedColor,
-      })
+      }),
     );
 
     router.back();
   };
 
-  const handleDelete = () => {
-    Alert.alert(
-      'Delete Staff Member',
-      `Are you sure you want to delete ${staffMember.name}? This will also remove all their shifts.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            dispatch(removeShiftsByStaff(staffMember.id));
-            dispatch(removeStaff(staffMember.id));
-            router.back();
-          },
-        },
-      ]
-    );
-  };
-
   const inputStyle = {
     padding: 16,
     borderRadius: 12,
-    borderCurve: 'continuous' as const,
+    borderCurve: "continuous" as const,
     fontSize: 16,
-    backgroundColor: isDark ? '#2d2d44' : '#f8f9fa',
-    color: isDark ? '#fff' : '#000',
+    backgroundColor: isDark ? "#2d2d44" : "#f8f9fa",
+    color: isDark ? "#fff" : "#000",
   };
 
   return (
     <SheetScreen
-      left={[{ key: 'cancel', label: 'Cancel', onPress: () => router.back() }]}
+      left={[{ key: "cancel", label: "Cancel", onPress: () => router.back() }]}
       right={[
         {
-          key: 'delete',
-          label: 'Delete Staff Member',
-          sf: 'trash',
-          md: 'trash-can-outline',
-          destructive: true,
-          onPress: handleDelete,
-        },
-        {
-          key: 'save',
-          label: 'Save',
+          key: "save",
+          label: "Save",
           prominent: true,
           disabled: !name.trim(),
           onPress: handleSave,
@@ -108,43 +82,51 @@ export default function EditStaffScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={{ gap: 8 }}>
-          <ThemedText style={{ fontSize: 14, fontWeight: '600', opacity: 0.8 }}>Name *</ThemedText>
+          <ThemedText style={{ fontSize: 14, fontWeight: "600", opacity: 0.8 }}>
+            Name *
+          </ThemedText>
           <TextInput
             style={inputStyle}
             value={name}
             onChangeText={setName}
             placeholder="Enter staff name"
-            placeholderTextColor={isDark ? '#666' : '#999'}
+            placeholderTextColor={isDark ? "#666" : "#999"}
           />
         </View>
 
         <View style={{ gap: 8 }}>
-          <ThemedText style={{ fontSize: 14, fontWeight: '600', opacity: 0.8 }}>Role</ThemedText>
+          <ThemedText style={{ fontSize: 14, fontWeight: "600", opacity: 0.8 }}>
+            Role
+          </ThemedText>
           <TextInput
             style={inputStyle}
             value={role}
             onChangeText={setRole}
             placeholder="e.g., Manager, Supervisor"
-            placeholderTextColor={isDark ? '#666' : '#999'}
+            placeholderTextColor={isDark ? "#666" : "#999"}
           />
         </View>
 
         <View style={{ gap: 8 }}>
-          <ThemedText style={{ fontSize: 14, fontWeight: '600', opacity: 0.8 }}>Email</ThemedText>
+          <ThemedText style={{ fontSize: 14, fontWeight: "600", opacity: 0.8 }}>
+            Email
+          </ThemedText>
           <TextInput
             style={inputStyle}
             value={email}
             onChangeText={setEmail}
             placeholder="Enter email address"
-            placeholderTextColor={isDark ? '#666' : '#999'}
+            placeholderTextColor={isDark ? "#666" : "#999"}
             keyboardType="email-address"
             autoCapitalize="none"
           />
         </View>
 
         <View style={{ gap: 8 }}>
-          <ThemedText style={{ fontSize: 14, fontWeight: '600', opacity: 0.8 }}>Color</ThemedText>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+          <ThemedText style={{ fontSize: 14, fontWeight: "600", opacity: 0.8 }}>
+            Color
+          </ThemedText>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
             {STAFF_COLORS.map((color) => (
               <Pressable
                 key={color}
@@ -155,7 +137,7 @@ export default function EditStaffScreen() {
                   borderRadius: 22,
                   backgroundColor: color,
                   borderWidth: selectedColor === color ? 3 : 0,
-                  borderColor: '#fff',
+                  borderColor: "#fff",
                 }}
               />
             ))}
