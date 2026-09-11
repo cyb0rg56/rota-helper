@@ -50,6 +50,18 @@ export const persistState = async () => {
   }
 };
 
+let persistTimer: ReturnType<typeof setTimeout> | null = null;
+
+export const schedulePersist = (delayMs = 400) => {
+  if (persistTimer) {
+    clearTimeout(persistTimer);
+  }
+  persistTimer = setTimeout(() => {
+    persistTimer = null;
+    void persistState();
+  }, delayMs);
+};
+
 export const loadPersistedState = async () => {
   try {
     const [staffData, shiftsData, periodData] = await Promise.all([

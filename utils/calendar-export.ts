@@ -1,7 +1,7 @@
 import { Shift, Staff } from '@/types';
 import { addDays, parseISO, setHours, setMinutes } from 'date-fns';
 import * as Calendar from 'expo-calendar';
-import { Alert, Platform } from 'react-native';
+import { Alert } from 'react-native';
 
 export async function requestCalendarPermissions(): Promise<boolean> {
   const { status } = await Calendar.requestCalendarPermissions();
@@ -19,64 +19,19 @@ export async function getOrCreateCalendar(calendarName: string): Promise<string 
     return existingCalendar.id;
   }
 
-  if (Platform.OS === 'ios') {
-    const localSource = calendars.find(
-      (cal) => cal.source && cal.source.type === Calendar.SourceType.LOCAL
-    )?.source;
-
-    const iCloudSource = calendars.find(
-      (cal) => cal.source && cal.source.type === Calendar.SourceType.CALDAV
-    )?.source;
-
-    const defaultCalendarSource = localSource || iCloudSource || calendars.find((cal) => cal.source)?.source;
-
-    if (defaultCalendarSource) {
-      try {
-        const newCalendar = await Calendar.createCalendar({
-          title: calendarName,
-          color: '#4ECDC4',
-          entityType: Calendar.EntityTypes.EVENT,
-          sourceId: defaultCalendarSource.id,
-          source: defaultCalendarSource,
-          name: calendarName.toLowerCase().replace(/\s+/g, '-'),
-          ownerAccount: 'personal',
-          accessLevel: Calendar.CalendarAccessLevel.OWNER,
-        });
-        return newCalendar.id;
-      } catch (error) {
-        console.error('Failed to create calendar:', error);
-      }
+  try {
+    const created = await createAppCalendar(calendarName, calendars);
+    if (created?.id) {
+      return created.id;
     }
-  } else if (Platform.OS === 'android') {
-    const defaultCalendarSource = calendars.find(
-      (cal) => cal.source && cal.allowsModifications
-    )?.source || calendars.find((cal) => cal.source)?.source;
-
-    if (defaultCalendarSource) {
-      try {
-        const newCalendar = await Calendar.createCalendar({
-          title: calendarName,
-          color: '#4ECDC4',
-          entityType: Calendar.EntityTypes.EVENT,
-          sourceId: defaultCalendarSource.id,
-          source: defaultCalendarSource,
-          name: calendarName.toLowerCase().replace(/\s+/g, '-'),
-          ownerAccount: 'personal',
-          accessLevel: Calendar.CalendarAccessLevel.OWNER,
-        });
-        return newCalendar.id;
-      } catch (error) {
-        console.error('Failed to create calendar:', error);
-      }
-    }
+  } catch (error) {
+    console.error('Failed to create calendar:', error);
   }
 
-  // If we couldn't create a calendar, use a default writable calendar
-  if (Platform.OS === 'ios') {
+  if (process.env.EXPO_OS === 'ios') {
     try {
       const defaultCalendar = Calendar.getDefaultCalendarSync();
-      if (defaultCalendar && defaultCalendar.allowsModifications) {
-        console.log('Using default calendar:', defaultCalendar.title);
+      if (defaultCalendar?.allowsModifications) {
         return defaultCalendar.id;
       }
     } catch (error) {
@@ -84,13 +39,50 @@ export async function getOrCreateCalendar(calendarName: string): Promise<string 
     }
   }
 
-  const fallbackCalendar = calendars.find((cal) => cal.allowsModifications);
-  if (fallbackCalendar) {
-    console.log('Using fallback calendar:', fallbackCalendar.title);
-    return fallbackCalendar.id;
+  return calendars.find((cal) => cal.allowsModifications)?.id ?? null;
+}
+
+async function createAppCalendar(
+  calendarName: string,
+  calendars: Calendar.ExpoCalendar[]
+) {
+  if (process.env.EXPO_OS === 'ios') {
+    const source =
+      calendars.find((cal) => cal.source?.type === Calendar.SourceType.LOCAL)?.source ??
+      calendars.find((cal) => cal.source?.type === Calendar.SourceType.CALDAV)?.source ??
+      calendars.find((cal) => cal.source)?.source;
+
+    if (!source) {
+      throw new Error('No calendar source available');
+    }
+
+    return Calendar.createCalendar({
+      title: calendarName,
+      color: '#4ECDC4',
+      entityType: Calendar.EntityTypes.EVENT,
+      sourceId: source.id,
+      source,
+      name: calendarName,
+      ownerAccount: 'personal',
+      accessLevel: Calendar.CalendarAccessLevel.OWNER,
+    });
   }
 
-  return null;
+  // Local account so export works on emulators / devices with no Google account.
+  // ownerAccount must match source.name or CalendarContract rejects the insert.
+  return Calendar.createCalendar({
+    title: calendarName,
+    color: '#4ECDC4',
+    entityType: Calendar.EntityTypes.EVENT,
+    name: calendarName,
+    ownerAccount: calendarName,
+    accessLevel: Calendar.CalendarAccessLevel.OWNER,
+    source: {
+      name: calendarName,
+      isLocalAccount: true,
+      type: 'LOCAL',
+    },
+  });
 }
 
 function parseTime(timeStr: string): { hours: number; minutes: number } {
