@@ -6,6 +6,7 @@ import { Icon } from "@/components/icon";
 import { ThemedText } from "@/components/themed-text";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Staff } from "@/types";
+import { blurActiveElement } from "@/utils/focus";
 
 function getAvatarTextColor(backgroundColor: string) {
   const hex = backgroundColor.replace("#", "");
@@ -36,8 +37,10 @@ export function StaffRow({
   const isIOS = process.env.EXPO_OS === "ios";
   const [isMainRowPressed, setIsMainRowPressed] = useState(false);
   const avatarTextColor = getAvatarTextColor(staffMember.color);
-  const editStaff = () =>
+  const editStaff = () => {
+    blurActiveElement();
     router.push({ pathname: "/edit-staff", params: { id: staffMember.id } });
+  };
   const showActions = () => {
     if (process.env.EXPO_OS !== "ios") {
       return;
@@ -82,6 +85,7 @@ export function StaffRow({
         <Link
           href={{ pathname: "/edit-staff", params: { id: staffMember.id } }}
           asChild
+          onPress={blurActiveElement}
         >
           <Link.Trigger>
             <Pressable
@@ -154,12 +158,13 @@ export function StaffRow({
           <Link.Menu>
             <Link.MenuAction
               icon="pencil"
-              onPress={() =>
+              onPress={() => {
+                blurActiveElement();
                 router.push({
                   pathname: "/edit-staff",
                   params: { id: staffMember.id },
-                })
-              }
+                });
+              }}
             >
               Edit
             </Link.MenuAction>

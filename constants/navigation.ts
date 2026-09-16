@@ -1,4 +1,5 @@
 const isIOS = process.env.EXPO_OS === 'ios';
+export const isWeb = process.env.EXPO_OS === 'web';
 
 /**
  * Large transparent headers rely on iOS `contentInsetAdjustmentBehavior`.
@@ -29,6 +30,7 @@ export const formSheetScreenOptions = {
         contentStyle: { backgroundColor: 'transparent' as const },
       }
     : {}),
+  ...(isWeb ? { headerShown: false } : {}),
 };
 
 /** Compact sheets keep a half-height first detent on iOS (Save is in the header). */

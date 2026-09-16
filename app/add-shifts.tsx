@@ -9,13 +9,15 @@ import {
   startOfMonth,
   subMonths,
 } from 'date-fns';
-import SegmentedControl from '@react-native-segmented-control/segmented-control';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, TextInput, View } from 'react-native';
 
 import { SheetScreen } from '@/components/header-actions';
 import { Icon } from '@/components/icon';
+import { SheetBodyTitle } from '@/components/sheet-body-title';
+import { SegmentedShiftType } from '@/components/segmented-shift-type';
+import { ShiftTypeToggle } from '@/components/shift-type-toggle';
 import { ThemedText } from '@/components/themed-text';
 import { TimeField } from '@/components/time-field';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -147,6 +149,7 @@ export default function AddShiftsScreen() {
             <ThemedText style={{ opacity: 0.65 }}>Assign shifts to your team</ThemedText>
           </View>
         ) : null}
+        <SheetBodyTitle title="Add Shifts" subtitle="Assign shifts to your team" />
 
         <View style={sectionStyle}>
           <ThemedText style={{ fontSize: 14, fontWeight: '600', opacity: 0.8 }}>
@@ -246,58 +249,13 @@ export default function AddShiftsScreen() {
             Select Dates *
           </ThemedText>
           {process.env.EXPO_OS === 'ios' ? (
-            <SegmentedControl
-              values={['Primary', 'Secondary']}
-              selectedIndex={selectionMode === 'primary' ? 0 : 1}
-              onChange={({ nativeEvent }) => {
-                setSelectionMode(nativeEvent.selectedSegmentIndex === 0 ? 'primary' : 'secondary');
-              }}
-            />
+            <SegmentedShiftType value={selectionMode} onChange={setSelectionMode} />
           ) : (
-            <View
-              style={{
-                flexDirection: 'row',
-                padding: 4,
-                borderRadius: 12,
-                borderCurve: 'continuous',
-                backgroundColor: isDark ? '#303047' : '#e8eaed',
-              }}
-              accessibilityRole="radiogroup"
-              accessibilityLabel="Shift type"
-            >
-              {(['primary', 'secondary'] as ShiftType[]).map((type) => {
-                const selected = selectionMode === type;
-                return (
-                  <Pressable
-                    key={type}
-                    onPress={() => setSelectionMode(type)}
-                    accessibilityRole="radio"
-                    accessibilityLabel={`${type === 'primary' ? 'Primary' : 'Secondary'} shift mode`}
-                    accessibilityState={{ selected, checked: selected }}
-                    android_ripple={{ color: 'rgba(78,205,196,0.24)' }}
-                    style={({ pressed }) => ({
-                      flex: 1,
-                      minHeight: 40,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      borderRadius: 9,
-                      backgroundColor: selected ? '#4ECDC4' : 'transparent',
-                      opacity: pressed ? 0.8 : 1,
-                    })}
-                  >
-                    <ThemedText
-                      style={{
-                        fontSize: 14,
-                        fontWeight: selected ? '700' : '500',
-                        color: selected ? '#073b3a' : isDark ? '#f0f2f5' : '#1a1a2e',
-                      }}
-                    >
-                      {type === 'primary' ? 'Primary' : 'Secondary'}
-                    </ThemedText>
-                  </Pressable>
-                );
-              })}
-            </View>
+            <ShiftTypeToggle
+              value={selectionMode}
+              onChange={setSelectionMode}
+              isDark={isDark}
+            />
           )}
           <ThemedText style={{ fontSize: 12, color: isDark ? '#aaa' : '#666' }}>
             Tap dates to mark them as {selectionMode === 'primary' ? 'Primary' : 'Secondary'}.
@@ -314,6 +272,8 @@ export default function AddShiftsScreen() {
           >
             <Pressable
               onPress={() => setCurrentMonth((prev) => subMonths(prev, 1))}
+              accessibilityRole="button"
+              accessibilityLabel="Previous month"
               style={{ padding: 12 }}
             >
               <Icon sf="chevron.left" md="chevron-left" size={24} color={isDark ? '#fff' : '#333'} />
@@ -325,6 +285,8 @@ export default function AddShiftsScreen() {
             </View>
             <Pressable
               onPress={() => setCurrentMonth((prev) => addMonths(prev, 1))}
+              accessibilityRole="button"
+              accessibilityLabel="Next month"
               style={{ padding: 12 }}
             >
               <Icon sf="chevron.right" md="chevron-right" size={24} color={isDark ? '#fff' : '#333'} />

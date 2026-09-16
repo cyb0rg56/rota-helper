@@ -1,9 +1,10 @@
 import { router, Stack } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Alert, FlatList, TextInput, View } from 'react-native';
+import { FlatList, TextInput, View } from 'react-native';
 
 import { HeaderActions } from '@/components/header-actions';
 import { Icon } from '@/components/icon';
+import { ScreenContainer } from '@/components/screen-container';
 import { StaffRow } from '@/components/staff-row';
 import { ThemedText } from '@/components/themed-text';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -11,6 +12,8 @@ import { useAppDispatch, useAppSelector } from '@/store';
 import { removeShiftsByStaff } from '@/store/slices/shiftSlice';
 import { removeStaff } from '@/store/slices/staffSlice';
 import { Staff } from '@/types';
+import { confirmAlert } from '@/utils/confirm';
+import { blurActiveElement } from '@/utils/focus';
 
 export default function StaffScreen() {
   const isDark = useColorScheme() === 'dark';
@@ -32,7 +35,7 @@ export default function StaffScreen() {
   }, [staff, query]);
 
   const handleDeleteStaff = (staffMember: Staff) => {
-    Alert.alert(
+    confirmAlert(
       'Delete Staff Member',
       `Are you sure you want to delete ${staffMember.name}? This will also remove all their shifts.`,
       [
@@ -51,6 +54,7 @@ export default function StaffScreen() {
 
   return (
     <>
+      <ScreenContainer>
       <FlatList
         data={filteredStaff}
         keyExtractor={(item) => item.id}
@@ -118,6 +122,7 @@ export default function StaffScreen() {
           </View>
         }
       />
+      </ScreenContainer>
       {process.env.EXPO_OS === 'ios' ? (
         <Stack.SearchBar
           placeholder="Search staff"
@@ -132,7 +137,10 @@ export default function StaffScreen() {
             label: 'Add Staff',
             sf: 'plus',
             md: 'plus',
-            onPress: () => router.push('/add-staff'),
+            onPress: () => {
+              blurActiveElement();
+              router.push('/add-staff');
+            },
           },
         ]}
       />

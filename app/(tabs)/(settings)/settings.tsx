@@ -3,16 +3,17 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   ScrollView,
   View,
 } from 'react-native';
 
 import { Icon } from '@/components/icon';
+import { ScreenContainer } from '@/components/screen-container';
 import { SettingsRow } from '@/components/settings-row';
 import { ThemedText } from '@/components/themed-text';
 import { CALENDAR_NAME_KEY, DEFAULT_CALENDAR_NAME } from '@/constants/storage';
+import { isWeb } from '@/constants/navigation';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAppDispatch, useAppSelector } from '@/store';
 import { clearAllShifts } from '@/store/slices/shiftSlice';
@@ -21,6 +22,8 @@ import {
   exportRotaToCalendar,
   showExportConfirmation,
 } from '@/utils/calendar-export';
+import { confirmAlert } from '@/utils/confirm';
+import { blurActiveElement } from '@/utils/focus';
 
 export default function SettingsScreen() {
   const isDark = useColorScheme() === 'dark';
@@ -47,7 +50,7 @@ export default function SettingsScreen() {
 
   const handleExportToCalendar = async () => {
     if (shifts.length === 0) {
-      Alert.alert('No Shifts', 'There are no shifts to export.');
+      confirmAlert('No Shifts', 'There are no shifts to export.');
       return;
     }
 
@@ -58,7 +61,9 @@ export default function SettingsScreen() {
 
       if (result.success) {
         const calendarUsed = result.calendarUsed || calendarName;
-        let message = `Successfully created ${result.eventsCreated} calendar event${result.eventsCreated !== 1 ? 's' : ''} in "${calendarUsed}".`;
+        let message = isWeb
+          ? `Downloaded ${result.eventsCreated} shift${result.eventsCreated !== 1 ? 's' : ''} as a calendar file ("${calendarUsed}").`
+          : `Successfully created ${result.eventsCreated} calendar event${result.eventsCreated !== 1 ? 's' : ''} in "${calendarUsed}".`;
 
         if (result.eventsSkipped > 0) {
           message += `\n\n${result.eventsSkipped} event${result.eventsSkipped !== 1 ? 's were' : ' was'} skipped (already exists in calendar).`;
@@ -68,15 +73,15 @@ export default function SettingsScreen() {
           message += `\n\nNote: Could not create "${calendarName}" calendar, so events were added to "${calendarUsed}" instead.`;
         }
 
-        Alert.alert('Export Complete', message);
+        confirmAlert('Export Complete', message);
       } else {
-        Alert.alert('Export Failed', result.error || 'Unknown error occurred.');
+        confirmAlert('Export Failed', result.error || 'Unknown error occurred.');
       }
     }, shifts.length);
   };
 
   const handleClearCalendar = () => {
-    Alert.alert(
+    confirmAlert(
       'Clear Calendar Events',
       `This will delete all Rota Helper events from the "${calendarName}" calendar. This action cannot be undone.\n\nContinue?`,
       [
@@ -90,12 +95,12 @@ export default function SettingsScreen() {
             setIsExporting(false);
 
             if (result.success) {
-              Alert.alert(
+              confirmAlert(
                 'Calendar Cleared',
                 `Successfully deleted ${result.eventsDeleted} event${result.eventsDeleted !== 1 ? 's' : ''} from "${calendarName}".`
               );
             } else {
-              Alert.alert('Clear Failed', result.error || 'Unknown error occurred.');
+              confirmAlert('Clear Failed', result.error || 'Unknown error occurred.');
             }
           },
         },
@@ -104,7 +109,7 @@ export default function SettingsScreen() {
   };
 
   const handleClearShifts = () => {
-    Alert.alert(
+    confirmAlert(
       'Clear All Shifts',
       'Are you sure you want to delete all shifts? This action cannot be undone.',
       [
@@ -123,6 +128,7 @@ export default function SettingsScreen() {
   const cardBackground = isDark ? '#2d2d44' : '#f8f9fa';
 
   return (
+    <ScreenContainer>
     <ScrollView
       style={{ flex: 1 }}
       contentInsetAdjustmentBehavior="automatic"
@@ -185,7 +191,10 @@ export default function SettingsScreen() {
             iconColor="#4ECDC4"
             label="Calendar Name"
             value={calendarName}
-            onPress={() => router.push('/calendar-name')}
+            onPress={() => {
+              blurActiveElement();
+              router.push('/calendar-name');
+            }}
           />
           <Pressable
             onPress={handleExportToCalendar}
@@ -223,17 +232,21 @@ export default function SettingsScreen() {
               paddingBottom: 16,
             }}
           >
-            {`Exports to "${calendarName}" calendar. Duplicates will be skipped.`}
+            {isWeb
+              ? `Downloads an .ics file titled "${calendarName}".`
+              : `Exports to "${calendarName}" calendar. Duplicates will be skipped.`}
           </ThemedText>
-          <SettingsRow
-            sf="trash"
-            md="delete-outline"
-            iconColor="#FF6B6B"
-            label="Clear Calendar Events"
-            onPress={handleClearCalendar}
-            destructive
-            showArrow={false}
-          />
+          {isWeb ? null : (
+            <SettingsRow
+              sf="trash"
+              md="delete-outline"
+              iconColor="#FF6B6B"
+              label="Clear Calendar Events"
+              onPress={handleClearCalendar}
+              destructive
+              showArrow={false}
+            />
+          )}
         </View>
       </View>
 
@@ -269,5 +282,6 @@ export default function SettingsScreen() {
         </View>
       </View>
     </ScrollView>
+    </ScreenContainer>
   );
 }

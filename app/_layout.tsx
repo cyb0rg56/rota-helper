@@ -10,6 +10,7 @@ import {
   smallSheetDetents,
 } from '@/constants/navigation';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useWebIconFonts } from '@/hooks/use-web-icon-fonts';
 import { loadPersistedPeriod } from '@/store/slices/periodSlice';
 import { setShifts } from '@/store/slices/shiftSlice';
 import { setStaff } from '@/store/slices/staffSlice';
@@ -25,6 +26,8 @@ function AppContent() {
   const colorScheme = useColorScheme();
   const dispatch = useAppDispatch();
   const [isReady, setIsReady] = useState(false);
+  const [fontsLoaded, fontError] = useWebIconFonts();
+  const fontsReady = fontsLoaded || fontError !== null;
 
   useEffect(() => {
     const loadState = async () => {
@@ -43,15 +46,21 @@ function AppContent() {
     if (!isReady) {
       return;
     }
+    if (process.env.EXPO_OS === 'web' && !fontsReady) {
+      return;
+    }
 
     void SplashScreen.hideAsync();
     const unsubscribe = store.subscribe(() => {
       schedulePersist();
     });
     return () => unsubscribe();
-  }, [isReady]);
+  }, [isReady, fontsReady]);
 
   if (!isReady) {
+    return null;
+  }
+  if (process.env.EXPO_OS === 'web' && !fontsReady) {
     return null;
   }
 

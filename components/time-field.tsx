@@ -1,5 +1,5 @@
 import DateTimePicker, {
-  type DateTimePickerEvent,
+  type DateTimePickerChangeEvent,
 } from '@react-native-community/datetimepicker';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
@@ -20,14 +20,17 @@ export function TimeField({
 }) {
   const [showAndroidPicker, setShowAndroidPicker] = useState(false);
 
-  const handleChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+  const handleValueChange = (_event: DateTimePickerChangeEvent, selectedDate: Date) => {
     if (process.env.EXPO_OS === 'android') {
       setShowAndroidPicker(false);
     }
-    if (event.type === 'dismissed' || !selectedDate) {
-      return;
-    }
     onChange(dateToTime(selectedDate));
+  };
+
+  const handleDismiss = () => {
+    if (process.env.EXPO_OS === 'android') {
+      setShowAndroidPicker(false);
+    }
   };
 
   if (process.env.EXPO_OS === 'ios') {
@@ -47,7 +50,8 @@ export function TimeField({
           display="compact"
           minuteInterval={30}
           themeVariant={isDark ? 'dark' : 'light'}
-          onChange={handleChange}
+          onValueChange={handleValueChange}
+          onDismiss={handleDismiss}
         />
       </View>
     );
@@ -76,7 +80,8 @@ export function TimeField({
           value={timeToDate(value)}
           mode="time"
           display="default"
-          onChange={handleChange}
+          onValueChange={handleValueChange}
+          onDismiss={handleDismiss}
         />
       ) : null}
     </View>
