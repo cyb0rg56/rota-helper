@@ -6,6 +6,7 @@ import { Icon } from '@/components/icon';
 import { ThemedText } from '@/components/themed-text';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Shift, Staff } from '@/types';
+import { blurActiveElement } from '@/utils/focus';
 import { isOvernight } from '@/utils/time';
 
 export function ShiftCard({
@@ -28,6 +29,7 @@ export function ShiftCard({
     <Link
       href={{ pathname: '/edit-shift', params: { id: shift.id } }}
       asChild
+      onPress={blurActiveElement}
     >
       <Link.Trigger>
         <Pressable
@@ -165,9 +167,10 @@ export function ShiftCard({
       <Link.Menu>
         <Link.MenuAction
           icon="pencil"
-          onPress={() =>
-            router.push({ pathname: '/edit-shift', params: { id: shift.id } })
-          }
+          onPress={() => {
+            blurActiveElement();
+            router.push({ pathname: '/edit-shift', params: { id: shift.id } });
+          }}
         >
           Edit
         </Link.MenuAction>

@@ -8,6 +8,16 @@ node_modules/
 dist/
 web-build/
 expo-env.d.ts
+.playwright-mcp/
+
+# dev
+.vscode/
+.cursor/
+.zed
+.codex
+.claude
+.argent
+.agents
 
 # Native
 .kotlin/

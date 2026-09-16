@@ -8,16 +8,19 @@ import {
 } from 'date-fns';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 
 import { HeaderActions } from '@/components/header-actions';
 import { Icon } from '@/components/icon';
+import { ScreenContainer } from '@/components/screen-container';
 import { ShiftCard } from '@/components/shift-card';
 import { ThemedText } from '@/components/themed-text';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAppDispatch, useAppSelector } from '@/store';
 import { removeShift } from '@/store/slices/shiftSlice';
 import { Shift } from '@/types';
+import { confirmAlert } from '@/utils/confirm';
+import { blurActiveElement } from '@/utils/focus';
 import { parseTime } from '@/utils/time';
 
 export default function RotaScreen() {
@@ -57,6 +60,7 @@ export default function RotaScreen() {
   }, [shiftsByDate]);
 
   const handleAddShift = () => {
+    blurActiveElement();
     if (staff.length === 0) {
       router.push('/staff');
       return;
@@ -65,7 +69,7 @@ export default function RotaScreen() {
   };
 
   const handleDeleteShift = (shift: Shift) => {
-    Alert.alert('Delete Shift', 'Are you sure you want to delete this shift?', [
+    confirmAlert('Delete Shift', 'Are you sure you want to delete this shift?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
@@ -77,6 +81,7 @@ export default function RotaScreen() {
 
   return (
     <>
+      <ScreenContainer>
       <ScrollView
         style={{ flex: 1 }}
         contentInsetAdjustmentBehavior="automatic"
@@ -96,6 +101,8 @@ export default function RotaScreen() {
         >
           <Pressable
             onPress={() => setCurrentWeekStart((prev) => subWeeks(prev, 1))}
+            accessibilityRole="button"
+            accessibilityLabel="Previous week"
             style={{ padding: 12 }}
           >
             <Icon sf="chevron.left" md="chevron-left" size={24} color={isDark ? '#fff' : '#333'} />
@@ -118,6 +125,8 @@ export default function RotaScreen() {
 
           <Pressable
             onPress={() => setCurrentWeekStart((prev) => addWeeks(prev, 1))}
+            accessibilityRole="button"
+            accessibilityLabel="Next week"
             style={{ padding: 12 }}
           >
             <Icon sf="chevron.right" md="chevron-right" size={24} color={isDark ? '#fff' : '#333'} />
@@ -172,6 +181,7 @@ export default function RotaScreen() {
           })
         )}
       </ScrollView>
+      </ScreenContainer>
       <HeaderActions
         placement="right"
         actions={[

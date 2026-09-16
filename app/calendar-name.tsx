@@ -1,12 +1,14 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, ScrollView, TextInput } from 'react-native';
+import { ScrollView, TextInput } from 'react-native';
 
 import { SheetScreen } from '@/components/header-actions';
+import { SheetBodyTitle } from '@/components/sheet-body-title';
 import { ThemedText } from '@/components/themed-text';
 import { CALENDAR_NAME_KEY, DEFAULT_CALENDAR_NAME } from '@/constants/storage';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { confirmAlert } from '@/utils/confirm';
 
 export default function CalendarNameScreen() {
   const isDark = useColorScheme() === 'dark';
@@ -30,7 +32,7 @@ export default function CalendarNameScreen() {
       router.back();
     } catch (error) {
       console.error('Failed to save calendar name:', error);
-      Alert.alert('Error', 'Failed to save calendar name');
+      confirmAlert('Error', 'Failed to save calendar name');
     }
   };
 
@@ -53,6 +55,7 @@ export default function CalendarNameScreen() {
         contentContainerStyle={{ padding: 20, gap: 16 }}
         keyboardShouldPersistTaps="handled"
       >
+        <SheetBodyTitle title="Calendar Name" />
         <ThemedText selectable style={{ fontSize: 14, opacity: 0.7 }}>
           Events will be created in this calendar
         </ThemedText>

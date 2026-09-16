@@ -89,3 +89,18 @@ export const STAFF_COLORS = [
   '#F8B500', // Golden
   '#00CED1', // Dark Cyan
 ];
+
+export const STAFF_COLOR_LABELS: Record<string, string> = {
+  '#FF6B6B': 'Coral red',
+  '#4ECDC4': 'Teal',
+  '#45B7D1': 'Sky blue',
+  '#96CEB4': 'Sage green',
+  '#FFEAA7': 'Soft yellow',
+  '#DDA0DD': 'Plum',
+  '#98D8C8': 'Mint',
+  '#F7DC6F': 'Mustard',
+  '#BB8FCE': 'Lavender',
+  '#85C1E9': 'Light blue',
+  '#F8B500': 'Golden',
+  '#00CED1': 'Dark cyan',
+};

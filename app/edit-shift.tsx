@@ -1,17 +1,19 @@
-import SegmentedControl from '@react-native-segmented-control/segmented-control';
 import { addDays, format, parseISO } from 'date-fns';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, TextInput, View } from 'react-native';
 
 import { SheetScreen } from '@/components/header-actions';
 import { Icon } from '@/components/icon';
+import { SheetBodyTitle } from '@/components/sheet-body-title';
+import { SegmentedShiftType } from '@/components/segmented-shift-type';
 import { ThemedText } from '@/components/themed-text';
 import { TimeField } from '@/components/time-field';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAppDispatch, useAppSelector } from '@/store';
 import { removeShift, updateShift } from '@/store/slices/shiftSlice';
 import { ShiftType, Staff } from '@/types';
+import { confirmAlert } from '@/utils/confirm';
 import { isOvernight } from '@/utils/time';
 
 export default function EditShiftScreen() {
@@ -69,7 +71,7 @@ export default function EditShiftScreen() {
   };
 
   const handleDelete = () => {
-    Alert.alert('Delete Shift', 'Are you sure you want to delete this shift?', [
+    confirmAlert('Delete Shift', 'Are you sure you want to delete this shift?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
@@ -116,6 +118,7 @@ export default function EditShiftScreen() {
         contentContainerStyle={{ padding: 20, gap: 20 }}
         keyboardShouldPersistTaps="handled"
       >
+        <SheetBodyTitle title="Edit Shift" />
         <View
           style={{
             flexDirection: 'row',
@@ -211,13 +214,7 @@ export default function EditShiftScreen() {
           <ThemedText style={{ fontSize: 14, fontWeight: '600', opacity: 0.8 }}>
             Shift Type *
           </ThemedText>
-          <SegmentedControl
-            values={['Primary', 'Secondary']}
-            selectedIndex={shiftType === 'primary' ? 0 : 1}
-            onChange={({ nativeEvent }) => {
-              setShiftType(nativeEvent.selectedSegmentIndex === 0 ? 'primary' : 'secondary');
-            }}
-          />
+          <SegmentedShiftType value={shiftType} onChange={setShiftType} isDark={isDark} />
         </View>
 
         {overnight ? (

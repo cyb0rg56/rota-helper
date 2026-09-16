@@ -3,11 +3,12 @@ import { useState } from 'react';
 import { Pressable, ScrollView, TextInput, View } from 'react-native';
 
 import { SheetScreen } from '@/components/header-actions';
+import { SheetBodyTitle } from '@/components/sheet-body-title';
 import { ThemedText } from '@/components/themed-text';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAppDispatch, useAppSelector } from '@/store';
 import { addStaff, getNextStaffColor } from '@/store/slices/staffSlice';
-import { STAFF_COLORS } from '@/types';
+import { STAFF_COLOR_LABELS, STAFF_COLORS } from '@/types';
 import { generateId } from '@/utils/id';
 
 export default function AddStaffScreen() {
@@ -66,6 +67,7 @@ export default function AddStaffScreen() {
         contentContainerStyle={{ padding: 20, gap: 20 }}
         keyboardShouldPersistTaps="handled"
       >
+        <SheetBodyTitle title="Add Staff Member" />
         <View style={{ gap: 8 }}>
           <ThemedText style={{ fontSize: 14, fontWeight: '600', opacity: 0.8 }}>Name *</ThemedText>
           <TextInput
@@ -109,6 +111,9 @@ export default function AddStaffScreen() {
               <Pressable
                 key={color}
                 onPress={() => setSelectedColor(color)}
+                accessibilityRole="button"
+                accessibilityLabel={STAFF_COLOR_LABELS[color] ?? color}
+                accessibilityState={{ selected: selectedColor === color }}
                 style={{
                   width: 44,
                   height: 44,
